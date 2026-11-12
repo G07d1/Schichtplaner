@@ -1,0 +1,1124 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Schichtplaner v5.0</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: #0f172a; color: #e2e8f0; font-family: 'IBM Plex Mono', monospace; min-height: 100vh; }
+
+/* HEADER */
+.header { background: linear-gradient(135deg,#1e3a5f,#0f172a); border-bottom: 1px solid #1e40af; padding: 14px 16px 10px; }
+.header h1 { font-family: 'IBM Plex Sans',sans-serif; color: #60a5fa; font-size: 19px; }
+.badge { font-size: 10px; color: #64748b; background: #1e293b; padding: 2px 7px; border-radius: 4px; display: inline-block; margin-top: 3px; }
+.header p { font-size: 11px; color: #475569; margin-top: 3px; }
+
+/* SAVE/LOAD BAR */
+.savebar { background: #1e293b; border-bottom: 1px solid #334155; padding: 10px 16px; }
+.save-row { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 6px; }
+.btn-sv { border: none; padding: 9px 14px; border-radius: 6px; cursor: pointer; font-size: 12px; font-family: inherit; font-weight: 600; }
+.btn-sv.blue { background: linear-gradient(135deg,#1e40af,#1d4ed8); color: #e0e7ff; }
+.btn-sv.teal { background: #0e7490; color: #cffafe; }
+.btn-sv.green { background: #16a34a; color: #fff; }
+.shint { font-size: 10px; color: #475569; }
+.load-input { display:none; margin-top:8px; }
+.load-input.show { display:block; }
+.file-hint { font-size:10px; color:#475569; margin-top:4px; }
+.status-msg { font-size:11px; margin-top:6px; display:none; }
+.status-msg.show { display:block; }
+.status-msg.ok { color:#34d399; }
+.status-msg.err { color:#f87171; }
+
+/* CONFIG */
+.config { background: #1e293b; border-bottom: 1px solid #334155; padding: 12px 16px; display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end; }
+.config label { font-size: 10px; color: #94a3b8; display: flex; flex-direction: column; gap: 3px; }
+.config select, .config input { background: #0f172a; border: 1px solid #334155; color: #e2e8f0; padding: 5px 7px; border-radius: 4px; font-size: 12px; font-family: inherit; }
+.config-hint { font-size: 10px; color: #475569; width: 100%; }
+
+/* SECTIONS */
+.section { padding: 12px 16px; }
+.section-title { font-size: 10px; color: #64748b; letter-spacing: 1px; margin-bottom: 8px; }
+
+/* FSK BAR */
+.fsk-bar { background: #1e293b; border: 1px solid #334155; border-radius: 6px; padding: 10px 14px; margin-bottom: 10px; display: flex; gap: 16px; flex-wrap: wrap; font-size: 12px; align-items: center; }
+.fsk-bar span { color: #94a3b8; }
+
+/* YEAR GRID */
+.year-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 6px; }
+.mcard { background: #1e293b; border: 1px solid #334155; border-radius: 6px; padding: 8px 10px; cursor: pointer; }
+.mcard.sel { background: #1e3a5f; border-color: #3b82f6; }
+.mcard.inactive { opacity: 0.3; pointer-events: none; }
+.mcard .mn { font-size: 10px; color: #64748b; margin-bottom: 3px; }
+.mcard .mf { font-size: 14px; font-weight: 600; }
+.mcard .md { font-size: 9px; color: #475569; margin-top: 1px; }
+
+/* WHAT-IF BOX */
+.whatif { background: #1e293b; border: 1px solid #334155; border-radius: 6px; padding: 10px 14px; margin-bottom: 10px; font-size: 11px; }
+.whatif .wi-title { font-size: 10px; color: #64748b; letter-spacing: 1px; margin-bottom: 6px; }
+.wi-row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-bottom: 4px; }
+.wi-row label { color: #94a3b8; display: flex; align-items: center; gap: 6px; }
+.wi-row input { background: #0f172a; border: 1px solid #334155; color: #e2e8f0; padding: 4px 7px; border-radius: 4px; font-size: 12px; font-family: inherit; width: 60px; }
+.wi-result { margin-top: 6px; line-height: 1.6; color: #94a3b8; }
+
+/* MONTH NAV */
+.month-hdr { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; flex-wrap: wrap; gap: 8px; }
+.mnav { display: flex; align-items: center; gap: 8px; }
+.mnav button { background: #1e293b; border: 1px solid #334155; color: #94a3b8; padding: 4px 12px; border-radius: 4px; cursor: pointer; font-size: 14px; }
+.mname { font-family: 'IBM Plex Sans',sans-serif; font-size: 16px; font-weight: 600; color: #93c5fd; }
+.mstats { display: flex; gap: 10px; font-size: 11px; flex-wrap: wrap; }
+.mstats span { color: #94a3b8; }
+.mstats b { color: #e2e8f0; }
+
+/* MONTH KORREKTUR */
+.mkorr { background: #1e293b; border: 1px solid #334155; border-radius: 6px; padding: 8px 12px; margin-bottom: 10px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; font-size: 11px; }
+.mkorr label { color: #94a3b8; display: flex; align-items: center; gap: 6px; }
+.mkorr input { background: #0f172a; border: 1px solid #334155; color: #e2e8f0; padding: 4px 7px; border-radius: 4px; font-size: 12px; font-family: inherit; width: 80px; }
+.mkorr-hint { font-size: 10px; color: #475569; }
+
+/* CALENDAR */
+.cal-wrap { background: #1e293b; border-radius: 8px; border: 1px solid #334155; overflow: hidden; }
+.cal-hdr { display: grid; grid-template-columns: repeat(7,1fr); background: #0f172a; }
+.cal-hdr div { text-align: center; padding: 5px 0; font-size: 10px; color: #475569; }
+.cal-week { display: grid; grid-template-columns: repeat(7,1fr); border-top: 1px solid #334155; }
+.cal-day { padding: 4px 3px 3px; min-height: 64px; border-left: 1px solid #1e293b; cursor: pointer; position: relative; }
+.cal-day:first-child { border-left: none; }
+.cal-day:active { opacity: 0.7; }
+.cal-day.we { background: #151f2e; }
+.cal-day.ft-bg { background: #1a0a0a; }
+.dnum { font-size: 10px; margin-bottom: 2px; }
+.dnum.normal { color: #94a3b8; }
+.dnum.weekend { color: #64748b; }
+.dnum.feiertag { color: #ef4444; }
+.sbadge { font-size: 8px; font-weight: 600; padding: 2px 3px; border-radius: 3px; display: inline-block; margin-bottom: 1px; }
+.mod-badge { font-size: 7px; font-weight: 700; padding: 1px 3px; border-radius: 3px; display: inline-block; margin-left: 1px; }
+.mod-tz { background:#0e7490; color:#cffafe; }
+.mod-zs { background:#16a34a; color:#fff; }
+.ft-label { font-size: 7px; color: #ef4444; display: block; }
+.ddelta { font-size: 8px; }
+.note-dot { position: absolute; bottom: 3px; left: 3px; width: 5px; height: 5px; border-radius: 50%; background: #f59e0b; }
+.ovr-dot { position: absolute; top: 3px; right: 3px; width: 5px; height: 5px; border-radius: 50%; background: #3b82f6; }
+
+/* WEEK SUM ROW */
+.week-sum { background: #0f172a; border-top: 1px solid #334155; display: grid; grid-template-columns: 1fr; padding: 3px 8px; font-size: 9px; color: #475569; }
+
+.pos { color: #34d399; }
+.neg { color: #f87171; }
+.zc  { color: #4ade80; }
+
+/* LEGEND */
+.legend { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+.li { display: flex; align-items: center; gap: 3px; font-size: 10px; color: #64748b; }
+.ld { width: 9px; height: 9px; border-radius: 2px; border: 1px solid #334155; flex-shrink: 0; }
+.hint { font-size: 10px; color: #475569; margin-top: 5px; line-height: 1.6; }
+.info-box { background: #1e293b; border: 1px solid #334155; border-radius: 6px; padding: 10px 12px; margin-top: 10px; font-size: 11px; color: #94a3b8; line-height: 1.6; }
+
+/* MODAL */
+.modal-bg { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.75); z-index: 100; align-items: flex-end; justify-content: center; }
+.modal-bg.open { display: flex; }
+.modal { background: #1e293b; border: 1px solid #3b82f6; border-radius: 16px 16px 0 0; padding: 20px 16px 30px; width: 100%; max-width: 480px; max-height: 90vh; overflow-y: auto; }
+.modal h3 { font-family: 'IBM Plex Sans',sans-serif; color: #93c5fd; font-size: 15px; margin-bottom: 2px; }
+.modal .sub { font-size: 10px; color: #64748b; margin-bottom: 10px; }
+.grp-label { font-size: 9px; color: #475569; letter-spacing: 1px; margin: 10px 0 4px 2px; }
+.mopt { display: flex; align-items: center; padding: 11px 12px; border-radius: 8px; border: 1px solid #334155; cursor: pointer; gap: 10px; margin-bottom: 6px; }
+.mopt:active { opacity: 0.7; }
+.mopt.active { border-color: #3b82f6; background: #1e3a5f; }
+.mopt.reset { border-color: #334155; margin-top: 6px; }
+.mopt .oc { width: 12px; height: 12px; border-radius: 3px; flex-shrink: 0; }
+.mopt .otxt { font-size: 13px; color: #e2e8f0; flex: 1; }
+.mopt .oauto { font-size: 9px; color: #475569; }
+
+/* MODIFIER TOGGLES */
+.mod-toggle { display: none; align-items: center; gap: 10px; padding: 11px 12px; border-radius: 8px; border: 1px solid #334155; margin-top: 8px; cursor: pointer; }
+.mod-toggle.show { display: flex; }
+.mod-toggle.on { border-color: #3b82f6; background: #1e3a5f; }
+.mod-toggle .chk { width: 18px; height: 18px; border-radius: 4px; border: 2px solid #64748b; flex-shrink: 0; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:700; color:#0f172a; }
+.mod-toggle.on .chk { background: #3b82f6; border-color:#3b82f6; color:#fff; }
+.mod-toggle .ttxt { font-size: 13px; color: #e2e8f0; flex: 1; }
+.mod-toggle .tinfo { font-size: 10px; color: #64748b; }
+.mod-toggle.on .tinfo { color: #93c5fd; }
+
+/* MH INPUT */
+.mh-input { display:none; margin-top:8px; }
+.mh-input.show { display:block; }
+.mh-input input { background: #0f172a; border: 1px solid #334155; color: #e2e8f0; padding: 8px 10px; border-radius: 6px; font-size: 14px; font-family: inherit; width: 100%; }
+.mh-input .mi-hint { font-size: 10px; color: #475569; margin-top: 4px; }
+
+/* NOTE INPUT */
+.note-section { margin-top: 10px; }
+.note-section label { font-size: 10px; color: #94a3b8; display:block; margin-bottom:4px; }
+.note-section textarea { background: #0f172a; border: 1px solid #334155; color: #e2e8f0; border-radius: 6px; padding: 8px; font-size: 12px; font-family: inherit; width: 100%; resize: vertical; min-height: 50px; }
+
+.btn-apply { margin-top: 10px; width: 100%; padding: 11px; background: #1e40af; border: none; color: #e0e7ff; border-radius: 8px; cursor: pointer; font-size: 14px; font-family: inherit; font-weight: 600; }
+.modal-close { margin-top: 8px; width: 100%; padding: 10px; background: #0f172a; border: 1px solid #334155; color: #94a3b8; border-radius: 8px; cursor: pointer; font-size: 13px; font-family: inherit; }
+
+/* LOGIN */
+.login-bg { position: fixed; inset: 0; background: #0f172a; z-index: 200; display: none; align-items: center; justify-content: center; padding: 16px; }
+.login-bg.open { display: flex; }
+.login-box { background: #1e293b; border: 1px solid #1e40af; border-radius: 12px; padding: 22px 18px; width: 100%; max-width: 360px; }
+.login-box h2 { font-family: 'IBM Plex Sans',sans-serif; color: #60a5fa; font-size: 18px; margin-bottom: 4px; }
+.login-box p { font-size: 11px; color: #64748b; margin-bottom: 14px; }
+.login-box label { font-size: 10px; color: #94a3b8; display: block; margin-bottom: 3px; }
+.login-box input { background: #0f172a; border: 1px solid #334155; color: #e2e8f0; padding: 10px; border-radius: 6px; font-size: 16px; font-family: inherit; width: 100%; margin-bottom: 10px; }
+.login-err { font-size: 12px; color: #f87171; min-height: 16px; margin-bottom: 6px; }
+.acct-row { display: flex; align-items: center; gap: 8px; margin-top: 6px; font-size: 10px; color: #64748b; flex-wrap: wrap; }
+.acct-row button { background: #1e293b; border: 1px solid #334155; color: #94a3b8; padding: 3px 9px; border-radius: 4px; font-size: 10px; font-family: inherit; cursor: pointer; }
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div class="login-bg" id="loginBg">
+  <form class="login-box" onsubmit="doLogin(event)">
+    <h2>⏱ Schichtplaner</h2>
+    <p>Bitte anmelden</p>
+    <label for="loginMail">E-MAIL</label>
+    <input type="email" id="loginMail" autocomplete="username" required>
+    <label for="loginPw">PASSWORT</label>
+    <input type="password" id="loginPw" autocomplete="current-password" required>
+    <div class="login-err" id="loginErr"></div>
+    <button type="submit" class="btn-apply" id="loginBtn" style="margin-top:0">Anmelden</button>
+  </form>
+</div>
+
+<div class="header">
+  <h1>⏱ Schichtplaner v5.0</h1>
+  <span class="badge" id="badgeText">2F · 2S · 2N · 4frei · Bayern · 35h/Woche</span>
+  <p>Tippe auf einen Tag um ihn zu bearbeiten</p>
+  <div class="acct-row" id="acctRow" style="display:none">
+    <span id="acctInfo"></span>
+    <button onclick="doLogout()">Abmelden</button>
+  </div>
+</div>
+
+<!-- SAVE/LOAD -->
+<div class="savebar">
+  <div class="save-row">
+    <button class="btn-sv blue" onclick="openSavePanel()">📋 Stand kopieren</button>
+    <button class="btn-sv teal" onclick="openLoadPanel()">📥 Stand einfügen</button>
+  </div>
+  <div class="shint">Kopiere den Text in die Notizen-App · Zum Laden wieder einfügen</div>
+
+  <div class="load-input" id="savePanel">
+    <textarea id="saveBox" readonly style="width:100%;background:#0f172a;border:1px solid #334155;color:#e2e8f0;border-radius:6px;padding:8px;font-size:10px;font-family:monospace;resize:vertical;min-height:60px;margin-top:6px;"></textarea>
+    <button class="btn-sv green" style="margin-top:6px;width:100%" onclick="copySaveBox()">In Zwischenablage kopieren</button>
+    <div class="file-hint">Text manuell markieren & kopieren falls der Button nicht geht · Dann in Notizen einfügen</div>
+  </div>
+
+  <div class="load-input" id="loadPanel">
+    <textarea id="loadBox" placeholder="Hier den gespeicherten Text einfügen..." style="width:100%;background:#0f172a;border:1px solid #334155;color:#e2e8f0;border-radius:6px;padding:8px;font-size:10px;font-family:monospace;resize:vertical;min-height:60px;margin-top:6px;"></textarea>
+    <button class="btn-sv teal" style="margin-top:6px;width:100%" onclick="applyLoadBox()">Stand übernehmen</button>
+  </div>
+
+  <div class="status-msg ok" id="statusMsg"></div>
+</div>
+
+<!-- CONFIG -->
+<div class="config">
+  <label>JAHR
+    <select id="selYear"><option>2025</option><option selected>2026</option><option>2027</option></select>
+  </label>
+  <label>STARTMONAT
+    <select id="selStartMonth">
+      <option value="0">Januar</option><option value="1">Februar</option><option value="2">März</option>
+      <option value="3">April</option><option value="4">Mai</option><option value="5" selected>Juni</option>
+      <option value="6">Juli</option><option value="7">August</option><option value="8">September</option>
+      <option value="9">Oktober</option><option value="10">November</option><option value="11">Dezember</option>
+    </select>
+  </label>
+  <label>FSK-STAND ZU BEGINN (h)
+    <input type="number" id="inpFsk" value="18.54" step="0.01" style="width:85px">
+  </label>
+  <label>ZYKLUSREFERENZ
+    <input type="date" id="inpDate" value="2026-05-01">
+  </label>
+  <label>POSITION AN DIESEM TAG
+    <select id="selPos">
+      <option value="1">Tag 1: Früh</option><option value="2">Tag 2: Früh</option>
+      <option value="3">Tag 3: Spät</option><option value="4">Tag 4: Spät</option>
+      <option value="5">Tag 5: Nacht</option><option value="6" selected>Tag 6: Nacht</option>
+      <option value="7">Tag 7: Frei</option><option value="8">Tag 8: Frei</option>
+      <option value="9">Tag 9: Frei</option><option value="10">Tag 10: Frei</option>
+    </select>
+  </label>
+  <label>WOCHENMODELL
+    <select id="selModell">
+      <option value="35" selected>35h/Woche</option>
+      <option value="32">32h/Woche</option>
+      <option value="30">30h/Woche</option>
+      <option value="28">28h/Woche</option>
+    </select>
+  </label>
+  <label>URLAUB GESAMT (Tage)
+    <input type="number" id="inpUrlaubA" value="30" step="1" min="0" style="width:85px" onchange="saveAnspruch()">
+  </label>
+  <label>T-ZUG GESAMT (Tage)
+    <input type="number" id="inpTzugA" value="8" step="1" min="0" style="width:85px" onchange="saveAnspruch()">
+  </label>
+  <div class="config-hint">💡 FSK-Stand vom letzten Zeitnachweis · Startmonat = erster Monat der berechnet wird · Nachtschichturlaub zum Urlaub addieren</div>
+</div>
+
+<!-- YEAR SECTION -->
+<div class="section">
+  <div class="section-title" id="yearTitle">JAHRESÜBERSICHT 2026</div>
+  <div class="fsk-bar" id="fskBar"></div>
+
+  <!-- WHAT-IF -->
+  <div class="whatif">
+    <div class="wi-title">WAS WÄRE WENN – ZUSATZSCHICHTEN</div>
+    <div class="wi-row">
+      <label>Zusätzliche ZS: <input type="number" id="wiZS" value="0" min="0" max="100" step="1" oninput="renderWhatIf()"></label>
+      <label>davon an Dienstfrei: <input type="number" id="wiZSdf" value="0" min="0" max="100" step="1" oninput="renderWhatIf()"></label>
+    </div>
+    <div class="wi-result" id="wiResult"></div>
+  </div>
+
+  <div class="year-grid" id="yearGrid"></div>
+</div>
+
+<!-- MONTH SECTION -->
+<div class="section">
+  <div class="month-hdr">
+    <div class="mnav">
+      <button onclick="chgM(-1)">◀</button>
+      <span class="mname" id="mname"></span>
+      <button onclick="chgM(1)">▶</button>
+    </div>
+    <div class="mstats" id="mstats"></div>
+  </div>
+
+  <div class="mkorr">
+    <label>Monatskorrektur (h):
+      <input type="number" id="inpKorr" value="0.07" step="0.01" onchange="saveKorr()">
+    </label>
+    <label style="margin-left:12px">SoBS (h):
+      <input type="number" id="inpSobs" value="-0.58" step="0.01" onchange="saveSobs()">
+    </label>
+    <span class="mkorr-hint">+0,07h Rundungsausgleich (1.) − 0,58h SoBS (letzter Tag) = −0,51h netto</span>
+  </div>
+  <div id="kontingentBox" style="font-size:11px;color:#94a3b8;line-height:1.8;background:#1e293b;border:1px solid #334155;border-radius:6px;padding:7px 12px;margin-bottom:10px"></div>
+
+  <div class="cal-wrap">
+    <div class="cal-hdr"><div>Mo</div><div>Di</div><div>Mi</div><div>Do</div><div>Fr</div><div>Sa</div><div>So</div></div>
+    <div id="calBody"></div>
+  </div>
+
+  <div class="legend">
+    <div class="li"><div class="ld" style="background:#fbbf24"></div>Früh</div>
+    <div class="li"><div class="ld" style="background:#f97316"></div>Spät</div>
+    <div class="li"><div class="ld" style="background:#1e40af"></div>Nacht</div>
+    <div class="li"><div class="ld" style="background:#dc2626"></div>Feiertag</div>
+    <div class="li"><div class="ld" style="background:#16a34a"></div>+ZS</div>
+    <div class="li"><div class="ld" style="background:#7c3aed"></div>Urlaub</div>
+    <div class="li"><div class="ld" style="background:#0e7490"></div>T-Zug</div>
+    <div class="li"><div class="ld" style="background:#be123c"></div>Krank/AU</div>
+    <div class="li"><div class="ld" style="background:#92400e"></div>Dienstfrei/#-Tag</div>
+    <div class="li"><div class="ld" style="background:#374151"></div>Freischicht</div>
+    <div class="li"><div class="ld" style="background:#1e3a5f;border-color:#3b82f6"></div>Unbez. Freistellung</div>
+  </div>
+  <div class="hint">
+    Auf jeden Tag tippen um ihn zu bearbeiten<br>
+    <span style="color:#3b82f6">●</span> = manuell geändert · <span style="color:#ef4444">rote Zahl</span> = Feiertag (bearbeitbar) · <span style="color:#f59e0b">●</span> = Notiz
+  </div>
+  <div class="info-box" id="infoBox"></div>
+</div>
+
+<!-- MODAL -->
+<div class="modal-bg" id="modalBg" onclick="closeBgClick(event)">
+  <div class="modal">
+    <h3 id="modalTitle"></h3>
+    <div class="sub" id="modalSub"></div>
+    <div id="modalKontingent" style="font-size:11px;color:#64748b;background:#1e293b;border-radius:5px;padding:5px 8px;margin:6px 0 8px 0;line-height:1.8"></div>
+    <div id="modalOpts"></div>
+
+    <div class="mod-toggle" id="tzToggle" onclick="toggleMod('tz')">
+      <div class="chk" id="tzChk"></div>
+      <span class="ttxt">+ T-Zug</span>
+      <span class="tinfo">FSK = 0,00h</span>
+    </div>
+    <div class="mod-toggle" id="zsToggle" onclick="toggleMod('zs')">
+      <div class="chk" id="zsChk"></div>
+      <span class="ttxt">+ Zusatzschicht</span>
+      <span class="tinfo" id="zsInfo"></span>
+    </div>
+    <div class="mod-toggle" id="mhToggle" onclick="toggleMod('mh')">
+      <div class="chk" id="mhChk"></div>
+      <span class="ttxt">Stunden anpassen</span>
+      <span class="tinfo">statt 8,08h</span>
+    </div>
+    <div class="mh-input" id="mhInput">
+      <input type="number" id="mhHours" min="0" max="24" step="0.01" placeholder="z.B. 4.0" oninput="onMhInput()">
+      <div class="mi-hint" id="mhHint"></div>
+    </div>
+
+    <div class="note-section">
+      <label>📝 Notiz (optional)</label>
+      <textarea id="noteInput" placeholder="z.B. ZS für Kollegen übernommen..."></textarea>
+    </div>
+
+    <button class="btn-apply" onclick="applyDay()">Übernehmen</button>
+    <button class="modal-close" onclick="closeModal()">Schließen</button>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+<script>
+const MONTHS  = ["Januar","Februar","März","April","Mai","Juni","Juli","August","September","Oktober","November","Dezember"];
+const DAYS_DE = ["So","Mo","Di","Mi","Do","Fr","Sa"];
+const ZYKLUS  = ["F","F","S","S","N","N","X","X","X","X"];
+
+const TYPES = {
+  F:  { label:"Frühschicht",        short:"F",    color:"#fbbf24", tc:"#1c1917", mods:{tz:true,  zs:false, mh:true}  },
+  S:  { label:"Spätschicht",        short:"S",    color:"#f97316", tc:"#fff",    mods:{tz:true,  zs:false, mh:true}  },
+  N:  { label:"Nachtschicht",       short:"N",    color:"#1e40af", tc:"#e0e7ff", mods:{tz:true,  zs:false, mh:true}  },
+  X:  { label:"Frei",               short:"frei", color:"transparent", tc:"#6b7280", mods:{tz:false, zs:true,  mh:false} },
+  DF: { label:"Dienstfrei",         short:"DF",   color:"#92400e", tc:"#fef3c7", mods:{tz:true,  zs:true,  mh:false} },
+  FS: { label:"Freischicht",        short:"FS",   color:"#374151", tc:"#9ca3af", mods:{tz:false, zs:false, mh:false} },
+  UF: { label:"Unbez. Freistellung",short:"UF",   color:"#1e3a5f", tc:"#93c5fd", mods:{tz:false, zs:false, mh:false} },
+  UR: { label:"Urlaub",             short:"UR",   color:"#7c3aed", tc:"#ede9fe", mods:{tz:false, zs:false, mh:false} },
+  KR: { label:"Krank / AU",         short:"KR",   color:"#be123c", tc:"#ffe4e6", mods:{tz:false, zs:false, mh:false} },
+  FT: { label:"Feiertag",           short:"FT",   color:"#dc2626", tc:"#fff",    mods:{tz:false, zs:false, mh:false} },
+};
+
+const OPT_GROUPS = [
+  { label:"ANWESENHEIT",         types:["F","S","N"]       },
+  { label:"ABWESENHEIT BEZAHLT", types:["UR","KR"]         },
+  { label:"ABWESENHEIT NEUTRAL", types:["X","DF","FS","UF"] },
+];
+
+const overrides = {};
+const korrMap   = {};
+const sobsMap   = {};
+const notes     = {};
+let selMonth    = 5;
+let urlaubAnspruch = 30;
+let tzugAnspruch   = 8;
+let modalDs     = null;
+let modalType   = null;
+let modalTz     = false;
+let modalZs     = false;
+let modalMh     = false;
+let modalMhVal  = null;
+let lastMonths  = [];
+
+function getSoll() {
+  return parseInt(document.getElementById("selModell").value) / 5;
+}
+
+function fskDelta(type, tz, zs, mhVal, isFTDay) {
+  if (tz) return 0;
+  const isShift = (type === "F" || type === "S" || type === "N");
+  // Feiertag + alles was sonst +1,08h gibt (oder Schicht) → +8,08h
+  if (isFTDay && (isShift || type === "UR" || type === "KR")) return 8.08;
+  if (type === "UR" || type === "KR") return 1.08;
+  if (type === "FS") return -getSoll();
+  if (type === "FT") return 0;
+  if (type === "UF") return 0;
+  const soll = (isShift || type === "DF") ? getSoll() : 0;
+  let arbeit;
+  if (mhVal !== null && mhVal !== undefined) {
+    arbeit = mhVal;
+  } else {
+    arbeit = (isShift || zs) ? 8.08 : 0;
+  }
+  return arbeit - soll;
+}
+
+function fmtDs(date) {
+  return date.getFullYear() + "-" + String(date.getMonth()+1).padStart(2,"0") + "-" + String(date.getDate()).padStart(2,"0");
+}
+
+function getBase() {
+  const ds  = document.getElementById("inpDate").value;
+  const pos = parseInt(document.getElementById("selPos").value);
+  const d   = new Date(ds + "T00:00:00");
+  d.setDate(d.getDate() - (pos - 1));
+  return d;
+}
+
+function getEaster(y) {
+  const a=y%19,b=Math.floor(y/100),c=y%100,d=Math.floor(b/4),e=b%4;
+  const f=Math.floor((b+8)/25),g=Math.floor((b-f+1)/3);
+  const h=(19*a+b-d-g+15)%30,i=Math.floor(c/4),k=c%4;
+  const l=(32+2*e+2*i-h-k)%7,m=Math.floor((a+11*h+22*l)/451);
+  const mo=Math.floor((h+l-7*m+114)/31),dy=((h+l-7*m+114)%31)+1;
+  return new Date(y,mo-1,dy);
+}
+
+function getFT(y) {
+  const s = new Set();
+  const a = (m,d) => s.add(y+"-"+String(m).padStart(2,"0")+"-"+String(d).padStart(2,"0"));
+  const e = getEaster(y);
+  const ae = (o) => {
+    const d = new Date(e); d.setDate(d.getDate()+o);
+    s.add(d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"));
+  };
+  a(1,1); a(1,6); ae(-2); ae(1); a(5,1); ae(39); ae(50); ae(60);
+  a(10,3); a(11,1); a(12,25); a(12,26);
+  return s;
+}
+
+function autoType(date, base, ft) {
+  const ds = fmtDs(date);
+  if (ft.has(ds)) return "FT";
+  const diff = Math.floor((date - base) / 86400000);
+  const posInCycle = ((diff % 10) + 10) % 10;
+  const posIn70    = ((diff % 70) + 70) % 70;
+  // #-Tag +N+: Position 7 jedes Zyklus (direkt nach 2 Nachtschichten)
+  if (posInCycle === 6) return "DF";
+  // #-Tag +F+: Position 10 alle 7 Zyklen (70 Tage)
+  if (posInCycle === 9 && posIn70 === 19) return "DF";
+  return ZYKLUS[posInCycle];
+}
+
+function getDayInfo(ds, date, base, ft) {
+  if (overrides[ds] !== undefined) return overrides[ds];
+  return { type: autoType(date, base, ft), tz:false, zs:false, mh:null };
+}
+
+function saveKorr() {
+  const year = parseInt(document.getElementById("selYear").value);
+  korrMap[year + "-" + selMonth] = parseFloat(document.getElementById("inpKorr").value) || 0;
+  render();
+}
+
+function saveSobs() {
+  const year = parseInt(document.getElementById("selYear").value);
+  sobsMap[year + "-" + selMonth] = parseFloat(document.getElementById("inpSobs").value) || 0;
+  render();
+}
+
+function saveAnspruch() {
+  urlaubAnspruch = parseInt(document.getElementById("inpUrlaubA").value) || 0;
+  tzugAnspruch   = parseInt(document.getElementById("inpTzugA").value)   || 0;
+  renderKontingent();
+}
+
+function renderKontingent() {
+  if (!lastMonths.length) return;
+  const year  = parseInt(document.getElementById("selYear").value);
+  const today = new Date();
+  let urV=0, urP=0, tzV=0, tzP=0;
+  for (let m = 0; m < 12; m++) {
+    const ms = lastMonths[m];
+    if (!ms || !ms.active) continue;
+    // Vergangen = Monat liegt vollständig vor heute
+    const isPast = new Date(year, m+1, 0) < today;
+    for (const day of ms.days) {
+      if (!day.active) continue;
+      if (day.type === "UR") { isPast ? urV++ : urP++; }
+      if (day.tz)            { isPast ? tzV++ : tzP++; }
+    }
+  }
+  const urRest  = urlaubAnspruch - urV - urP;
+  const tzRest  = tzugAnspruch   - tzV - tzP;
+  const col = v => v < 0 ? "#f87171" : v === 0 ? "#fbbf24" : "#86efac";
+  document.getElementById("kontingentBox").innerHTML =
+    '<span style="display:inline-block;min-width:80px;color:#e2e8f0">🏖 Urlaub</span>' +
+    ' Gesamt: <b>' + urlaubAnspruch + '</b>' +
+    ' &nbsp;|&nbsp; Verbraucht: <b>' + urV + '</b>' +
+    ' &nbsp;|&nbsp; Verplant: <b>' + urP + '</b>' +
+    ' &nbsp;|&nbsp; Rest: <b style="color:' + col(urRest) + '">' + urRest + '</b><br>' +
+    '<span style="display:inline-block;min-width:80px;color:#e2e8f0">⏱ T-Zug</span>' +
+    ' Gesamt: <b>' + tzugAnspruch + '</b>' +
+    ' &nbsp;|&nbsp; Verbraucht: <b>' + tzV + '</b>' +
+    ' &nbsp;|&nbsp; Verplant: <b>' + tzP + '</b>' +
+    ' &nbsp;|&nbsp; Rest: <b style="color:' + col(tzRest) + '">' + tzRest + '</b>';
+}
+
+function loadKorr() {
+  const year = parseInt(document.getElementById("selYear").value);
+  const key  = year + "-" + selMonth;
+  const kval = korrMap[key] !== undefined ? korrMap[key] : 0.07;
+  const sval = sobsMap[key] !== undefined ? sobsMap[key] : -0.58;
+  document.getElementById("inpKorr").value = kval.toFixed(2);
+  document.getElementById("inpSobs").value = sval.toFixed(2);
+}
+
+function compute() {
+  const year    = parseInt(document.getElementById("selYear").value);
+  const startM  = parseInt(document.getElementById("selStartMonth").value);
+  const fskInit = parseFloat(document.getElementById("inpFsk").value) || 0;
+  const base    = getBase();
+  const ft      = getFT(year);
+  let fsk       = fskInit;
+  const months  = [];
+
+  for (let m = 0; m < 12; m++) {
+    const active  = m >= startM;
+    const dim     = new Date(year, m+1, 0).getDate();
+    const korr    = korrMap[year + "-" + m] !== undefined ? korrMap[year + "-" + m] : 0.07;
+    const sobs    = sobsMap[year + "-" + m] !== undefined ? sobsMap[year + "-" + m] : -0.58;
+    let arbeit=0, soll=0, delta=0, nZS=0, nUR=0, nTZ=0, nKR=0;
+    const fskS = fsk;
+    const days = [];
+    const weeks = [];
+    let weekArbeit=0, weekSoll=0, weekDelta=0;
+
+    for (let d = 1; d <= dim; d++) {
+      const date    = new Date(year, m, d);
+      const ds      = fmtDs(date);
+      const dow     = date.getDay(); // 0=So
+      const info    = getDayInfo(ds, date, base, ft);
+      const type    = info.type;
+      const tz      = !!info.tz;
+      const zs      = !!info.zs;
+      const mhVal   = (info.mh !== null && info.mh !== undefined) ? info.mh : null;
+      const t       = TYPES[type] || TYPES.X;
+      const isFTDay = ft.has(ds);
+      const dd      = fskDelta(type, tz, zs, mhVal, isFTDay);
+      const isWE    = dow === 0 || dow === 6;
+      const hasOvr  = overrides[ds] !== undefined;
+      const hasNote = !!notes[ds];
+
+      if (active) {
+        if (zs)            nZS++;
+        if (type === "UR") nUR++;
+        if (type === "KR") nKR++;
+        if (tz)            nTZ++;
+
+        const sollDay = (type==="F"||type==="S"||type==="N"||type==="DF") ? getSoll() : 0;
+        let effArbeit;
+        if (tz) effArbeit = sollDay;
+        else if (mhVal !== null) effArbeit = mhVal;
+        else {
+          const isShift = (type==="F"||type==="S"||type==="N");
+          effArbeit = (isShift || zs) ? 8.08 : 0;
+        }
+        arbeit   += effArbeit;
+        soll     += sollDay;
+        delta    += dd;
+        weekArbeit += effArbeit;
+        weekSoll   += sollDay;
+        weekDelta  += dd;
+      }
+
+      days.push({ d, ds, dow, type, t, dd, tz, zs, mh:mhVal, isFTDay, isWE, active, hasOvr, hasNote });
+
+      // End of week (Sunday) or end of month
+      if (dow === 0 || d === dim) {
+        if (active) {
+          weeks.push({ arbeit:Math.round(weekArbeit*100)/100, soll:Math.round(weekSoll*100)/100, delta:Math.round(weekDelta*100)/100 });
+        } else {
+          weeks.push(null);
+        }
+        weekArbeit=0; weekSoll=0; weekDelta=0;
+      }
+    }
+
+    if (active) fsk = Math.round((fsk + delta + korr + sobs) * 100) / 100;
+    months.push({
+      days, weeks, active,
+      arbeit: Math.round(arbeit*100)/100,
+      soll:   Math.round(soll*100)/100,
+      delta:  Math.round((delta+korr+sobs)*100)/100,
+      nZS, nUR, nTZ, nKR, korr, sobs,
+      fskS, fskE: active ? fsk : null, m
+    });
+  }
+  return months;
+}
+
+function renderWhatIf() {
+  const nZS   = parseInt(document.getElementById("wiZS").value) || 0;
+  const nZSdf = parseInt(document.getElementById("wiZSdf").value) || 0;
+  const nZSx  = Math.max(0, nZS - nZSdf);
+  // FSK per ZS: DF-based = 8.08 - Sollzeit, X-based = +8.08
+  const zsGainDf = Math.round((8.08 - getSoll()) * 100) / 100;
+  const fskGain  = nZSdf * zsGainDf + nZSx * 8.08;
+  const curFsk  = lastMonths.length > 0 ? (lastMonths.filter(m=>m.active).reverse()[0]?.fskE || 0) : 0;
+  const newFsk  = Math.round((curFsk + fskGain) * 100) / 100;
+  const el = document.getElementById("wiResult");
+  if (nZS === 0) { el.innerHTML = "Trage ein wie viele Zusatzschichten du planst."; return; }
+  el.innerHTML =
+    'Aktueller Jahresend-FSK: <b class="' + (curFsk>=0?"pos":"neg") + '">' + (curFsk>=0?"+":"") + curFsk.toFixed(2) + 'h</b><br>' +
+    'Zusätzlicher FSK-Gewinn: <b class="pos">+' + fskGain.toFixed(2) + 'h</b> (' + nZSdf + ' × DF +' + zsGainDf.toFixed(2) + 'h + ' + nZSx + ' × Frei +8.08h)<br>' +
+    'Neuer Jahresend-FSK: <b class="' + (newFsk>=0?"pos":"neg") + '">' + (newFsk>=0?"+":"") + newFsk.toFixed(2) + 'h</b>';
+}
+
+function render() {
+  const year    = parseInt(document.getElementById("selYear").value);
+  const startM  = parseInt(document.getElementById("selStartMonth").value);
+  const fskInit = parseFloat(document.getElementById("inpFsk").value) || 0;
+
+  document.getElementById("yearTitle").textContent = "JAHRESÜBERSICHT " + year;
+  document.getElementById("badgeText").textContent = "2F · 2S · 2N · 4frei · Bayern · " + document.getElementById("selModell").value + "h/Woche";
+  loadKorr();
+
+  lastMonths = compute();
+  const lastA  = [...lastMonths].reverse().find(m => m.active);
+  const fskEnd = lastA ? lastA.fskE : fskInit;
+  const totD   = Math.round((fskEnd - fskInit) * 100) / 100;
+
+  document.getElementById("fskBar").innerHTML =
+    '<span>Start (' + MONTHS[startM].slice(0,3) + '): <b class="' + (fskInit>=0?"pos":"neg") + '">' + (fskInit>=0?"+":"") + fskInit.toFixed(2) + 'h</b></span>' +
+    '<span>Jahresende: <b class="' + (fskEnd>=0?"pos":"neg") + '">' + (fskEnd>=0?"+":"") + fskEnd.toFixed(2) + 'h</b></span>' +
+    '<span>Gesamt Δ: <b class="' + (totD>=0?"pos":"neg") + '">' + (totD>=0?"+":"") + totD.toFixed(2) + 'h</b></span>';
+
+  renderWhatIf();
+  renderKontingent();
+
+  document.getElementById("yearGrid").innerHTML = lastMonths.map((ms, mi) => {
+    if (!ms.active) return '<div class="mcard inactive"><div class="mn">' + MONTHS[mi].slice(0,3).toUpperCase() + '</div><div style="font-size:11px;color:#334155">—</div></div>';
+    return '<div class="mcard' + (mi===selMonth?" sel":"") + '" onclick="selM(' + mi + ')">' +
+      '<div class="mn">' + MONTHS[mi].slice(0,3).toUpperCase() + '</div>' +
+      '<div class="mf ' + (ms.fskE>=0?"pos":"neg") + '">' + (ms.fskE>=0?"+":"") + ms.fskE.toFixed(2) + 'h</div>' +
+      '<div class="md">Δ ' + (ms.delta>=0?"+":"") + ms.delta.toFixed(2) +
+      (ms.nZS>0 ? ' <span class="zc">+' + ms.nZS + 'ZS</span>' : '') +
+      (ms.nUR>0 ? ' <span style="color:#a78bfa">+' + ms.nUR + 'UR</span>' : '') +
+      (ms.nTZ>0 ? ' <span style="color:#67e8f9">+' + ms.nTZ + 'TZ</span>' : '') +
+      (ms.nKR>0 ? ' <span style="color:#fda4af">+' + ms.nKR + 'KR</span>' : '') +
+      (ms.korr!==0 ? ' <span style="color:#f59e0b">K' + (ms.korr>=0?"+":"") + ms.korr.toFixed(2) + '</span>' : '') +
+      (ms.sobs!==0 ? ' <span style="color:#f87171">SoBS' + (ms.sobs>=0?"+":"") + ms.sobs.toFixed(2) + '</span>' : '') +
+      '</div></div>';
+  }).join("");
+
+  const ms = lastMonths[selMonth];
+  document.getElementById("mname").textContent = MONTHS[selMonth] + " " + year;
+
+  if (!ms.active) {
+    document.getElementById("mstats").innerHTML = '<span style="color:#475569">Vor dem Startmonat</span>';
+    document.getElementById("calBody").innerHTML = "";
+    document.getElementById("infoBox").innerHTML = "";
+    return;
+  }
+
+  document.getElementById("mstats").innerHTML =
+    '<span>Arbeit: <b>' + ms.arbeit.toFixed(2) + 'h</b></span>' +
+    '<span>Soll: <b>' + ms.soll.toFixed(2) + 'h</b></span>' +
+    '<span>Δ: <b class="' + (ms.delta>=0?"pos":"neg") + '">' + (ms.delta>=0?"+":"") + ms.delta.toFixed(2) + 'h</b></span>' +
+    '<span>FSK: <b class="' + (ms.fskE>=0?"pos":"neg") + '">' + ms.fskE.toFixed(2) + 'h</b></span>';
+
+  const needZS = ms.fskE < 0 ? Math.ceil(Math.abs(ms.fskE) / 1.08) : 0;
+  document.getElementById("infoBox").innerHTML = ms.fskE < 0
+    ? '<b style="color:#f87171">FSK-Stand: ' + ms.fskE.toFixed(2) + 'h</b> → ca. <b>' + needZS + ' Zusatzschicht(en)</b> nötig um auf 0 zu kommen.'
+    : '<b style="color:#34d399">FSK-Stand: +' + ms.fskE.toFixed(2) + 'h</b> – alles im grünen Bereich.';
+
+  // Calendar
+  const firstDow = (new Date(year, selMonth, 1).getDay() + 6) % 7;
+  const cells    = Array(firstDow).fill(null).concat(ms.days);
+  while (cells.length % 7 !== 0) cells.push(null);
+
+  let weekIdx = 0;
+  let weekDeltaAcc = 0;
+  let daysInWeek = 0;
+
+  let html = "";
+  for (let i = 0; i < cells.length; i += 7) {
+    html += '<div class="cal-week">';
+    let wDelta = 0;
+    let wHasActive = false;
+    for (let j = 0; j < 7; j++) {
+      const day = cells[i+j];
+      if (!day) { html += '<div class="cal-day"></div>'; continue; }
+      const t  = day.t;
+      const bg = t.color;
+      const lbl = t.short;
+      let dnumCls = "normal";
+      if (day.isFTDay) dnumCls = "feiertag";
+      else if (day.isWE) dnumCls = "weekend";
+      let cellCls = "";
+      if (day.isFTDay && !day.hasOvr) cellCls = "ft-bg";
+      else if (day.isWE) cellCls = "we";
+
+      let dH;
+      if (day.mh !== null) {
+        dH = '<div class="ddelta ' + (day.dd>0?"pos":(day.dd<0?"neg":"")) + '">' + day.mh.toFixed(1) + 'h / ' + (day.dd>0?"+":"") + day.dd.toFixed(2) + '</div>';
+      } else if (day.tz) {
+        dH = '<div class="ddelta pos">0.00</div>';
+      } else if (day.dd !== 0) {
+        dH = '<div class="ddelta ' + (day.dd>0?"pos":"neg") + '">' + (day.dd>0?"+":"") + day.dd.toFixed(2) + '</div>';
+      } else {
+        dH = '';
+      }
+
+      const dot     = day.hasOvr  ? '<div class="ovr-dot"></div>' : '';
+      const noteDot = day.hasNote ? '<div class="note-dot"></div>' : '';
+      const ftLbl   = day.isFTDay && day.hasOvr ? '<span class="ft-label">● FT</span>' : '';
+      const tzBadge = day.tz ? '<span class="mod-badge mod-tz">TZ</span>' : '';
+      const zsBadge = day.zs ? '<span class="mod-badge mod-zs">ZS</span>' : '';
+
+      if (day.active) { wDelta += day.dd; wHasActive = true; }
+
+      html += '<div class="cal-day ' + cellCls + '" onclick="openModal(\'' + day.ds + '\')">' +
+        '<div class="dnum ' + dnumCls + '">' + day.d + '</div>' +
+        '<span class="sbadge" style="background:' + bg + ';color:' + t.tc + ';' + (bg==="transparent"?"border:1px solid #334155":"") + '">' + lbl + '</span>' +
+        tzBadge + zsBadge + ftLbl + dH + dot + noteDot + '</div>';
+    }
+    html += '</div>';
+
+    // Week sum row
+    if (wHasActive) {
+      html += '<div class="week-sum"><span>Woche: Δ <b class="' + (wDelta>=0?"pos":"neg") + '">' + (wDelta>=0?"+":"") + wDelta.toFixed(2) + 'h</b></span></div>';
+    }
+  }
+  document.getElementById("calBody").innerHTML = html;
+}
+
+// ===== MODAL =====
+function openModal(ds) {
+  const year   = parseInt(document.getElementById("selYear").value);
+  const base   = getBase();
+  const ft     = getFT(year);
+  const parts  = ds.split("-");
+  const date   = new Date(parseInt(parts[0]), parseInt(parts[1])-1, parseInt(parts[2]));
+  const dow    = date.getDay();
+
+  modalDs  = ds;
+  const info    = getDayInfo(ds, date, base, ft);
+  modalType     = info.type;
+  modalTz       = !!info.tz;
+  modalZs       = !!info.zs;
+  modalMh       = (info.mh !== null && info.mh !== undefined);
+  modalMhVal    = modalMh ? info.mh : null;
+
+  const autoT   = autoType(date, base, ft);
+  const hasOvr  = overrides[ds] !== undefined;
+  const isFTDay = ft.has(ds);
+
+  document.getElementById("modalTitle").textContent =
+    DAYS_DE[dow] + ", " + date.getDate() + ". " + MONTHS[date.getMonth()] + " " + year;
+  const ftOverrideType = isFTDay && hasOvr ? (overrides[ds]?.type || "FT") : "FT";
+  const ftShift  = isFTDay && hasOvr && ["F","S","N"].includes(ftOverrideType);
+  const ftUrlaub = isFTDay && hasOvr && ftOverrideType === "UR";
+  const ftKrank  = isFTDay && hasOvr && ftOverrideType === "KR";
+  document.getElementById("modalSub").textContent =
+    "Automatisch: " + TYPES[autoT].label +
+    (isFTDay ? " · 🔴 Feiertag" : "") +
+    (ftShift  ? " · ⚡ Schicht = +8,08h"  : "") +
+    (ftUrlaub ? " · ⚡ Urlaub = +8,08h"   : "") +
+    (ftKrank  ? " · ⚡ Krank = +8,08h"    : "") +
+    (!isFTDay && hasOvr ? " · Manuell geändert" : "");
+
+  document.getElementById("noteInput").value = notes[ds] || "";
+  renderModalOpts(autoT, hasOvr);
+  renderModifiers();
+
+  // Kontingent-Stand bis zu diesem Tag berechnen
+  let urBisHeute = 0, tzBisHeute = 0;
+  for (let m = 0; m < 12; m++) {
+    const ms = lastMonths[m];
+    if (!ms || !ms.active) continue;
+    for (const day of ms.days) {
+      if (!day.active) continue;
+      if (day.ds >= ds) break; // nur Tage VOR diesem Tag
+      if (day.type === "UR") urBisHeute++;
+      if (day.tz)            tzBisHeute++;
+    }
+  }
+  const urRest = urlaubAnspruch - urBisHeute;
+  const tzRest = tzugAnspruch   - tzBisHeute;
+  const col = v => v <= 0 ? "#f87171" : v <= 3 ? "#fbbf24" : "#64748b";
+  document.getElementById("modalKontingent").innerHTML =
+    '🏖 Urlaub verfügbar: <b style="color:' + col(urRest) + '">' + urRest + ' Tage</b>' +
+    ' &nbsp;&nbsp; ⏱ T-Zug verfügbar: <b style="color:' + col(tzRest) + '">' + tzRest + ' Tage</b>';
+
+  document.getElementById("modalBg").classList.add("open");
+}
+
+function renderModalOpts(autoT, hasOvr) {
+  let html = "";
+  for (const group of OPT_GROUPS) {
+    html += '<div class="grp-label">' + group.label + '</div>';
+    for (const type of group.types) {
+      const t        = TYPES[type];
+      const isActive = modalType === type;
+      const isAuto   = autoT === type && !hasOvr;
+      html += '<div class="mopt' + (isActive ? " active" : "") + '" onclick="selectType(\'' + type + '\')">' +
+        '<div class="oc" style="background:' + t.color + ';' + (t.color === "transparent" ? "border:1px solid #334155" : "") + '"></div>' +
+        '<span class="otxt">' + t.label + '</span>' +
+        (isAuto ? '<span class="oauto">(auto)</span>' : '') +
+        '</div>';
+    }
+  }
+  if (hasOvr) {
+    html += '<div class="mopt reset" onclick="resetType()">' +
+      '<span style="font-size:16px;margin-right:4px">↩</span>' +
+      '<span class="otxt" style="color:#94a3b8">Zurücksetzen · Auto: ' + TYPES[autoT].label + '</span>' +
+      '</div>';
+  }
+  document.getElementById("modalOpts").innerHTML = html;
+}
+
+function selectType(type) {
+  modalType = type;
+  const mods = TYPES[type].mods;
+  if (!mods.tz) modalTz = false;
+  if (!mods.zs) { modalZs = false; }
+  const year   = parseInt(document.getElementById("selYear").value);
+  const base   = getBase();
+  const ft     = getFT(year);
+  const parts  = modalDs.split("-");
+  const date   = new Date(parseInt(parts[0]), parseInt(parts[1])-1, parseInt(parts[2]));
+  renderModalOpts(autoType(date, base, ft), overrides[modalDs] !== undefined);
+  renderModifiers();
+}
+
+function renderModifiers() {
+  const mods = TYPES[modalType] ? TYPES[modalType].mods : {tz:false,zs:false,mh:false};
+
+  const tzEl = document.getElementById("tzToggle");
+  if (mods.tz) {
+    tzEl.classList.add("show");
+    tzEl.classList.toggle("on", modalTz);
+    document.getElementById("tzChk").textContent = modalTz ? "✓" : "";
+  } else { tzEl.classList.remove("show","on"); modalTz = false; }
+
+  const zsEl = document.getElementById("zsToggle");
+  if (mods.zs) {
+    zsEl.classList.add("show");
+    zsEl.classList.toggle("on", modalZs);
+    document.getElementById("zsChk").textContent = modalZs ? "✓" : "";
+    document.getElementById("zsInfo").textContent = modalType === "DF" ? "FSK +" + (8.08 - getSoll()).toFixed(2) + "h" : "FSK +8.08h";
+  } else { zsEl.classList.remove("show","on"); modalZs = false; }
+
+  const mhAllowed = mods.mh || (mods.zs && modalZs);
+  const mhEl = document.getElementById("mhToggle");
+  const mhInputEl = document.getElementById("mhInput");
+  if (mhAllowed) {
+    mhEl.classList.add("show");
+    mhEl.classList.toggle("on", modalMh);
+    document.getElementById("mhChk").textContent = modalMh ? "✓" : "";
+    if (modalMh) {
+      mhInputEl.classList.add("show");
+      document.getElementById("mhHours").value = modalMhVal !== null ? modalMhVal : "";
+      const sollTxt = (modalType==="F"||modalType==="S"||modalType==="N"||modalType==="DF") ? getSoll().toFixed(2) : "0.00";
+      document.getElementById("mhHint").textContent = "FSK = Stunden − " + sollTxt + "h Soll";
+    } else { mhInputEl.classList.remove("show"); }
+  } else {
+    mhEl.classList.remove("show","on");
+    mhInputEl.classList.remove("show");
+    modalMh = false; modalMhVal = null;
+  }
+}
+
+function toggleMod(which) {
+  if (which === "tz") {
+    modalTz = !modalTz;
+    if (modalTz) { modalZs = false; modalMh = false; modalMhVal = null; }
+  } else if (which === "zs") {
+    modalZs = !modalZs;
+    if (modalZs) modalTz = false;
+    else { modalMh = false; modalMhVal = null; }
+  } else if (which === "mh") {
+    modalMh = !modalMh;
+    if (modalMh) { modalTz = false; if (modalMhVal===null) modalMhVal = 8.08; }
+    else modalMhVal = null;
+  }
+  renderModifiers();
+}
+
+function onMhInput() {
+  const v = parseFloat(document.getElementById("mhHours").value);
+  modalMhVal = isNaN(v) ? null : v;
+}
+
+function applyDay() {
+  if (!modalDs) return;
+  if (modalMh && (modalMhVal === null || modalMhVal < 0 || modalMhVal > 24)) {
+    alert("Bitte gültige Stundenzahl eingeben (0–24)"); return;
+  }
+  overrides[modalDs] = { type:modalType, tz:modalTz, zs:modalZs, mh: modalMh ? modalMhVal : null };
+  const noteVal = document.getElementById("noteInput").value.trim();
+  if (noteVal) notes[modalDs] = noteVal;
+  else delete notes[modalDs];
+  closeModal();
+  render();
+}
+
+function resetType() {
+  if (modalDs) {
+    delete overrides[modalDs];
+    const noteVal = document.getElementById("noteInput").value.trim();
+    if (noteVal) notes[modalDs] = noteVal;
+    else delete notes[modalDs];
+  }
+  closeModal();
+  render();
+}
+
+function closeModal() {
+  document.getElementById("modalBg").classList.remove("open");
+  document.querySelectorAll(".mod-toggle").forEach(e=>e.classList.remove("show","on"));
+  document.getElementById("mhInput").classList.remove("show");
+  modalDs = null;
+}
+
+function closeBgClick(e) {
+  if (e.target === document.getElementById("modalBg")) closeModal();
+}
+
+function selM(m) {
+  const sm = parseInt(document.getElementById("selStartMonth").value);
+  if (m >= sm) { selMonth = m; render(); }
+}
+
+function chgM(d) {
+  const sm = parseInt(document.getElementById("selStartMonth").value);
+  const n  = selMonth + d;
+  if (n >= sm && n <= 11) { selMonth = n; render(); }
+}
+
+// ===== SAVE / LOAD (Copy & Paste) =====
+function buildState() {
+  return {
+    v: 4,
+    year:          document.getElementById("selYear").value,
+    startMonth:    document.getElementById("selStartMonth").value,
+    fsk:           document.getElementById("inpFsk").value,
+    date:          document.getElementById("inpDate").value,
+    pos:           document.getElementById("selPos").value,
+    modell:        document.getElementById("selModell").value,
+    selMonth:      selMonth,
+    overrides:     overrides,
+    korrMap:       korrMap,
+    sobsMap:       sobsMap,
+    notes:         notes,
+    urlaubAnspruch: urlaubAnspruch,
+    tzugAnspruch:   tzugAnspruch,
+  };
+}
+
+function openSavePanel() {
+  document.getElementById("loadPanel").classList.remove("show");
+  const p = document.getElementById("savePanel");
+  p.classList.toggle("show");
+  if (p.classList.contains("show")) {
+    document.getElementById("saveBox").value = JSON.stringify(buildState());
+    document.getElementById("statusMsg").classList.remove("show");
+  }
+}
+
+function openLoadPanel() {
+  document.getElementById("savePanel").classList.remove("show");
+  const p = document.getElementById("loadPanel");
+  p.classList.toggle("show");
+  document.getElementById("statusMsg").classList.remove("show");
+}
+
+function copySaveBox() {
+  const box = document.getElementById("saveBox");
+  box.select();
+  box.setSelectionRange(0, 99999);
+  let copied = false;
+  try {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(box.value);
+      copied = true;
+    }
+  } catch(e) {}
+  if (!copied) { try { document.execCommand("copy"); copied = true; } catch(e) {} }
+  showStatus(copied ? "✅ Kopiert! Jetzt in Notizen einfügen." : "Text manuell markieren & kopieren.", "ok");
+}
+
+function applyLoadBox() {
+  const txt = document.getElementById("loadBox").value.trim();
+  if (!txt) { showStatus("❌ Bitte zuerst Text einfügen.", "err"); return; }
+  let s;
+  try { s = JSON.parse(txt); } catch(e) { showStatus("❌ Text konnte nicht gelesen werden.", "err"); return; }
+  applyState(s);
+  document.getElementById("loadPanel").classList.remove("show");
+  document.getElementById("loadBox").value = "";
+}
+
+function applyState(s) {
+  document.getElementById("selYear").value       = s.year || "2026";
+  document.getElementById("selStartMonth").value = s.startMonth || "0";
+  document.getElementById("inpFsk").value        = s.fsk || "0";
+  document.getElementById("inpDate").value       = s.date || "2026-05-01";
+  document.getElementById("selPos").value        = s.pos || "1";
+  if (s.modell) document.getElementById("selModell").value = s.modell;
+  selMonth = s.selMonth !== undefined ? s.selMonth : 5;
+  for (const k in overrides) delete overrides[k];
+  for (const k in korrMap)  delete korrMap[k];
+  for (const k in sobsMap)  delete sobsMap[k];
+  for (const k in notes)    delete notes[k];
+  Object.assign(overrides, s.overrides || {});
+  Object.assign(korrMap,   s.korrMap   || {});
+  Object.assign(sobsMap,   s.sobsMap   || {});
+  Object.assign(notes,     s.notes     || {});
+  urlaubAnspruch = s.urlaubAnspruch !== undefined ? s.urlaubAnspruch : 30;
+  tzugAnspruch   = s.tzugAnspruch   !== undefined ? s.tzugAnspruch   : 8;
+  document.getElementById("inpUrlaubA").value = urlaubAnspruch;
+  document.getElementById("inpTzugA").value   = tzugAnspruch;
+  showStatus("✅ Stand geladen!", "ok");
+  render();
+}
+
+function showStatus(msg, cls) {
+  const el = document.getElementById("statusMsg");
+  el.textContent = msg;
+  el.className = "status-msg show " + cls;
+  setTimeout(() => el.classList.remove("show"), 4000);
+}
+
+["selYear","selStartMonth","inpFsk","inpDate","selPos","selModell"].forEach(id => {
+  document.getElementById(id).addEventListener("change", () => {
+    const sm = parseInt(document.getElementById("selStartMonth").value);
+    if (selMonth < sm) selMonth = sm;
+    render();
+  });
+});
+
+// ===== SUPABASE LOGIN =====
+// Hier Projekt-URL und anon/publishable Key eintragen (Supabase → Project Settings → API).
+// Leer lassen = Tool läuft ohne Login (z.B. im HTML-Viewer).
+const SB_URL = "";
+const SB_KEY = "";
+let sb = null;
+
+function showLogin(msg) {
+  document.getElementById("loginBg").classList.add("open");
+  document.getElementById("acctRow").style.display = "none";
+  document.getElementById("loginErr").textContent = msg || "";
+}
+
+async function onLoggedIn(user) {
+  document.getElementById("loginBg").classList.remove("open");
+  document.getElementById("acctRow").style.display = "flex";
+  document.getElementById("acctInfo").textContent = user.email + " · Datenbank wird geprüft …";
+  // Verbindungstest: eigene Zeile lesen (Schritt 1 – Speichern kommt in Schritt 2)
+  const { error } = await sb.from("schichtplaner").select("user_id").eq("user_id", user.id).maybeSingle();
+  document.getElementById("acctInfo").textContent = user.email + (error ? " · ⚠ Datenbank: " + error.message : " · Datenbank ✓");
+}
+
+async function doLogin(e) {
+  e.preventDefault();
+  const btn = document.getElementById("loginBtn");
+  btn.disabled = true; btn.textContent = "Anmelden …";
+  document.getElementById("loginErr").textContent = "";
+  const { data, error } = await sb.auth.signInWithPassword({
+    email: document.getElementById("loginMail").value.trim(),
+    password: document.getElementById("loginPw").value,
+  });
+  btn.disabled = false; btn.textContent = "Anmelden";
+  if (error) {
+    const m = /invalid login/i.test(error.message) ? "E-Mail oder Passwort falsch."
+            : /too many|rate/i.test(error.message) ? "Zu viele Versuche – bitte kurz warten."
+            : "Fehler: " + error.message;
+    document.getElementById("loginErr").textContent = m;
+    return;
+  }
+  document.getElementById("loginPw").value = "";
+  onLoggedIn(data.user);
+}
+
+async function doLogout() {
+  await sb.auth.signOut();
+  showLogin("Abgemeldet.");
+}
+
+render();
+
+(async () => {
+  if (!SB_URL || !SB_KEY) return; // ohne Supabase: alter Modus ohne Login
+  if (!window.supabase) { showLogin("Login-Bibliothek konnte nicht geladen werden (Internet?)."); return; }
+  sb = window.supabase.createClient(SB_URL.trim().replace(/\/+$/, ""), SB_KEY.trim());
+  const { data } = await sb.auth.getSession();
+  if (data.session) onLoggedIn(data.session.user);
+  else showLogin();
+})();
+</script>
+</body>
+</html>
