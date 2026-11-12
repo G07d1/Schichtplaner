@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-<title>Schichtplaner v5.0</title>
+<title>Schichtplaner v5.1</title>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;600;700&display=swap" rel="stylesheet">
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -183,7 +183,7 @@ body { background: #0f172a; color: #e2e8f0; font-family: 'IBM Plex Mono', monosp
 </div>
 
 <div class="header">
-  <h1>⏱ Schichtplaner v5.0</h1>
+  <h1>⏱ Schichtplaner v5.1</h1>
   <span class="badge" id="badgeText">2F · 2S · 2N · 4frei · Bayern · 35h/Woche</span>
   <p>Tippe auf einen Tag um ihn zu bearbeiten</p>
   <div class="acct-row" id="acctRow" style="display:none">
@@ -493,6 +493,7 @@ function saveAnspruch() {
   urlaubAnspruch = parseInt(document.getElementById("inpUrlaubA").value) || 0;
   tzugAnspruch   = parseInt(document.getElementById("inpTzugA").value)   || 0;
   renderKontingent();
+  scheduleSave();
 }
 
 function renderKontingent() {
@@ -638,6 +639,7 @@ function renderWhatIf() {
 }
 
 function render() {
+  scheduleSave();
   const year    = parseInt(document.getElementById("selYear").value);
   const startM  = parseInt(document.getElementById("selStartMonth").value);
   const fskInit = parseFloat(document.getElementById("inpFsk").value) || 0;
@@ -1064,8 +1066,8 @@ function showStatus(msg, cls) {
 // ===== SUPABASE LOGIN =====
 // Hier Projekt-URL und anon/publishable Key eintragen (Supabase → Project Settings → API).
 // Leer lassen = Tool läuft ohne Login (z.B. im HTML-Viewer).
-const SB_URL = "https://reithvwizkydktydpwni.supabase.co";
-const SB_KEY = "sb_publishable_BhaAQzt8wwHf2RZctuwhIA_MPz2nkvj";
+const SB_URL = "";
+const SB_KEY = "";
 let sb = null;
 
 function showLogin(msg) {
@@ -1074,13 +1076,66 @@ function showLogin(msg) {
   document.getElementById("loginErr").textContent = msg || "";
 }
 
+// ===== AUTOMATISCH SPEICHERN / LADEN =====
+let currentUser   = null;
+let dbReady       = false;   // erst true, wenn der Stand aus der DB geladen wurde (schützt vor Überschreiben)
+let lastSavedJson = null;
+let saveTimer     = null;
+
+function setAcct(txt) {
+  document.getElementById("acctInfo").textContent = currentUser ? currentUser.email + " · " + txt : txt;
+}
+
+function scheduleSave() {
+  if (!sb || !currentUser || !dbReady) return;
+  if (JSON.stringify(buildState()) === lastSavedJson) return;
+  setAcct("speichert …");
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(saveNow, 1000);
+}
+
+async function saveNow() {
+  clearTimeout(saveTimer); saveTimer = null;
+  if (!sb || !currentUser || !dbReady) return;
+  const state = buildState();
+  const json  = JSON.stringify(state);
+  if (json === lastSavedJson) return;
+  const { error } = await sb.from("schichtplaner").upsert({
+    user_id: currentUser.id, data: state, updated_at: new Date().toISOString()
+  });
+  if (error) { setAcct("⚠ nicht gespeichert (" + error.message + ")"); return; }
+  lastSavedJson = json;
+  const t = new Date();
+  setAcct("gespeichert ✓ " + String(t.getHours()).padStart(2,"0") + ":" + String(t.getMinutes()).padStart(2,"0"));
+}
+
+// Beim Verlassen/Wegwischen der Seite offene Änderungen sofort speichern
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "hidden" && saveTimer) saveNow();
+});
+
 async function onLoggedIn(user) {
+  currentUser = user;
+  dbReady = false;
   document.getElementById("loginBg").classList.remove("open");
   document.getElementById("acctRow").style.display = "flex";
-  document.getElementById("acctInfo").textContent = user.email + " · Datenbank wird geprüft …";
-  // Verbindungstest: eigene Zeile lesen (Schritt 1 – Speichern kommt in Schritt 2)
-  const { error } = await sb.from("schichtplaner").select("user_id").eq("user_id", user.id).maybeSingle();
-  document.getElementById("acctInfo").textContent = user.email + (error ? " · ⚠ Datenbank: " + error.message : " · Datenbank ✓");
+  setAcct("lädt …");
+  const { data, error } = await sb.from("schichtplaner").select("data").eq("user_id", user.id).maybeSingle();
+  if (error) {
+    // Nicht speichern, damit der Datenbank-Stand nicht mit leeren Werten überschrieben wird
+    setAcct("⚠ Laden fehlgeschlagen – Seite neu laden (" + error.message + ")");
+    return;
+  }
+  if (data && data.data) {
+    applyState(data.data);
+    showStatus("✅ Stand aus der Datenbank geladen", "ok");
+    lastSavedJson = JSON.stringify(buildState());
+    dbReady = true;
+    setAcct("geladen ✓");
+  } else {
+    dbReady = true;
+    setAcct("noch kein Stand gespeichert – einmal „Stand einfügen“");
+  }
 }
 
 async function doLogin(e) {
@@ -1105,8 +1160,9 @@ async function doLogin(e) {
 }
 
 async function doLogout() {
+  if (saveTimer) await saveNow();
   await sb.auth.signOut();
-  showLogin("Abgemeldet.");
+  location.reload(); // Seite leeren, damit keine Daten sichtbar bleiben
 }
 
 render();
