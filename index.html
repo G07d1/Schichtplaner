@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-<title>Schichtplaner v5.2</title>
+<title>Schichtplaner v5.3</title>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;600;700&display=swap" rel="stylesheet">
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -183,7 +183,7 @@ body { background: #0f172a; color: #e2e8f0; font-family: 'IBM Plex Mono', monosp
 </div>
 
 <div class="header">
-  <h1>⏱ Schichtplaner v5.2</h1>
+  <h1>⏱ Schichtplaner v5.3</h1>
   <span class="badge" id="badgeText">2F · 2S · 2N · 4frei · Bayern · 35h/Woche</span>
   <p>Tippe auf einen Tag um ihn zu bearbeiten</p>
   <div class="acct-row" id="acctRow" style="display:none">
@@ -316,6 +316,7 @@ body { background: #0f172a; color: #e2e8f0; font-family: 'IBM Plex Mono', monosp
     <div class="li"><div class="ld" style="background:#92400e"></div>Dienstfrei/#-Tag</div>
     <div class="li"><div class="ld" style="background:#374151"></div>Freischicht</div>
     <div class="li"><div class="ld" style="background:#1e3a5f;border-color:#3b82f6"></div>Unbez. Freistellung</div>
+    <div class="li"><div class="ld" style="background:#dc2626"></div>FT↺ = Feiertag verschoben (Nacht am Vorabend)</div>
   </div>
   <div class="hint">
     Auf jeden Tag tippen um ihn zu bearbeiten<br>
@@ -379,12 +380,14 @@ const TYPES = {
   UR: { label:"Urlaub",             short:"UR",   color:"#7c3aed", tc:"#ede9fe", mods:{tz:false, zs:false, mh:false} },
   KR: { label:"Krank / AU",         short:"KR",   color:"#be123c", tc:"#ffe4e6", mods:{tz:false, zs:false, mh:false} },
   FT: { label:"Feiertag",           short:"FT",   color:"#dc2626", tc:"#fff",    mods:{tz:false, zs:false, mh:false} },
+  // Nacht am Vorabend eines Feiertags fällt aus (Tag läuft 22–22 Uhr, die Nacht liegt im Feiertag) → wie Feiertag, FSK 0
+  FV: { label:"Feiertag (verschoben)", short:"FT↺", color:"#dc2626", tc:"#fff",  mods:{tz:false, zs:false, mh:false} },
 };
 
 const OPT_GROUPS = [
   { label:"ANWESENHEIT",         types:["F","S","N"]       },
   { label:"ABWESENHEIT BEZAHLT", types:["UR","KR"]         },
-  { label:"ABWESENHEIT NEUTRAL", types:["X","DF","FS","UF"] },
+  { label:"ABWESENHEIT NEUTRAL", types:["X","DF","FS","UF","FV"] },
 ];
 
 const overrides = {};
@@ -416,14 +419,15 @@ function getSoll() {
   return parseInt(document.getElementById("selModell").value) / 5;
 }
 
-function fskDelta(type, tz, zs, mhVal, isFTDay) {
+function fskDelta(type, tz, zs, mhVal, isFTDay, hasOvr) {
   if (tz) return 0;
   const isShift = (type === "F" || type === "S" || type === "N");
-  // Feiertag + alles was sonst +1,08h gibt (oder Schicht) → +8,08h
-  if (isFTDay && (isShift || type === "UR" || type === "KR")) return 8.08;
+  // Feiertag + MANUELL eingetragene Schicht/Urlaub/Krank → +8,08h (Sonderfälle wie 26.12., wird noch geklärt).
+  // Automatisch geplante Nacht am Feiertag ist eine normale Nacht (+1,08h, belegt durch Zeitnachweis 1. Mai 2026).
+  if (isFTDay && hasOvr && (isShift || type === "UR" || type === "KR")) return 8.08;
   if (type === "UR" || type === "KR") return 1.08;
   if (type === "FS") return -getSoll();
-  if (type === "FT") return 0;
+  if (type === "FT" || type === "FV") return 0;
   if (type === "UF") return 0;
   const soll = (isShift || type === "DF") ? getSoll() : 0;
   let arbeit;
@@ -469,10 +473,10 @@ function getFT(y) {
   return s;
 }
 
-function autoType(date, base, ft) {
-  const ds = fmtDs(date);
-  if (ft.has(ds)) return "FT";
-  const diff = Math.floor((date - base) / 86400000);
+// Schicht laut Rhythmus, ohne Feiertage
+function cycleType(date, base) {
+  // Math.round statt floor: bei Sommer-/Winterzeit liegen zwischen zwei Tagen 23 oder 25 Stunden
+  const diff = Math.round((date - base) / 86400000);
   const posInCycle = ((diff % 10) + 10) % 10;
   const posIn70    = ((diff % 70) + 70) % 70;
   // #-Tag +N+: Position 7 jedes Zyklus (direkt nach 2 Nachtschichten)
@@ -480,6 +484,22 @@ function autoType(date, base, ft) {
   // #-Tag +F+: Position 10 alle 7 Zyklen (70 Tage)
   if (posInCycle === 9 && posIn70 === 19) return "DF";
   return ZYKLUS[posInCycle];
+}
+
+// Ein Tag läuft bei Bosch von 22 bis 22 Uhr. Ein Feiertag beginnt also am Vorabend um 22 Uhr:
+//  - Früh/Spät am Feiertag → frei (Feiertag)
+//  - Nacht am Feiertag (beginnt abends, gehört zum Folgetag) → wird normal gearbeitet
+//  - Nacht am Vorabend eines Feiertags (liegt im Feiertag) → fällt aus: "Feiertag (verschoben)"
+function autoType(date, base, ft) {
+  const ds = fmtDs(date);
+  const t  = cycleType(date, base);
+  if (ft.has(ds)) return t === "N" ? "N" : "FT";
+  if (t === "N") {
+    const next   = new Date(date.getFullYear(), date.getMonth(), date.getDate() + 1);
+    const ftNext = next.getFullYear() === date.getFullYear() ? ft : getFT(next.getFullYear());
+    if (ftNext.has(fmtDs(next))) return "FV";
+  }
+  return t;
 }
 
 function getDayInfo(ds, date, base, ft) {
@@ -599,9 +619,9 @@ function compute(year, startM, fskInit) {
       const mhVal   = (info.mh !== null && info.mh !== undefined) ? info.mh : null;
       const t       = TYPES[type] || TYPES.X;
       const isFTDay = ft.has(ds);
-      const dd      = fskDelta(type, tz, zs, mhVal, isFTDay);
-      const isWE    = dow === 0 || dow === 6;
       const hasOvr  = overrides[ds] !== undefined;
+      const dd      = fskDelta(type, tz, zs, mhVal, isFTDay, hasOvr);
+      const isWE    = dow === 0 || dow === 6;
       const hasNote = !!notes[ds];
 
       if (active) {
@@ -758,7 +778,7 @@ function render() {
       if (day.isFTDay) dnumCls = "feiertag";
       else if (day.isWE) dnumCls = "weekend";
       let cellCls = "";
-      if (day.isFTDay && !day.hasOvr) cellCls = "ft-bg";
+      if ((day.isFTDay || day.type === "FV") && !day.hasOvr) cellCls = "ft-bg";
       else if (day.isWE) cellCls = "we";
 
       let dH;
@@ -828,6 +848,8 @@ function openModal(ds) {
     (ftShift  ? " · ⚡ Schicht = +8,08h"  : "") +
     (ftUrlaub ? " · ⚡ Urlaub = +8,08h"   : "") +
     (ftKrank  ? " · ⚡ Krank = +8,08h"    : "") +
+    (isFTDay && !hasOvr && autoT === "N" ? " · 🌙 Nacht am Feiertag = normale Schicht (+1,08h)" : "") +
+    (!hasOvr && autoT === "FV" ? " · Nacht am Vorabend fällt aus (Feiertag ab 22 Uhr) = 0h" : "") +
     (!isFTDay && hasOvr ? " · Manuell geändert" : "");
 
   document.getElementById("noteInput").value = notes[ds] || "";
