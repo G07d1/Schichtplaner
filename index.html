@@ -3,167 +3,222 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-<title>Schichtplaner v5.3</title>
+<meta name="color-scheme" content="light dark">
+<title>Schichtplaner v5.4</title>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;600;700&display=swap" rel="stylesheet">
 <style>
+/* ===== FARBEN =====
+   Dunkel (Graphit) ist der Grundwert. Hell gilt bei data-theme="light"
+   oder bei "Automatisch", wenn das Handy auf hell steht. */
+:root {
+  color-scheme: dark;
+  --bg: #0e0e10; --surface: #1a1a1d; --surface2: #232327; --input: #111113;
+  --border: #34343a; --border-soft: #26262b;
+  --text: #f4f4f5; --muted: #a1a1aa; --faint: #8a8a93;
+  --title: #fbbf24; --accent: #f59e0b; --on-accent: #1c1917; --sel-bg: #2d2410;
+  --we: #151517; --ft-bg: #3a1414;
+  --pos: #4ade80; --neg: #f87171; --warn: #fbbf24;
+  --dot-ovr: #60a5fa; --dot-note: #f59e0b;
+  --tz-bg: #0e7490; --tz-tx: #cffafe; --zs-bg: #16a34a; --zs-tx: #ffffff;
+  --backdrop: rgba(0,0,0,0.75);
+}
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) {
+    color-scheme: light;
+    --bg: #eef0f3; --surface: #ffffff; --surface2: #f4f5f7; --input: #ffffff;
+    --border: #d4d7dd; --border-soft: #e5e7eb;
+    --text: #111827; --muted: #4b5563; --faint: #6b7280;
+    --title: #0f766e; --accent: #0f766e; --on-accent: #ffffff; --sel-bg: #e6f4f2;
+    --we: #f6f7f9; --ft-bg: #fde2e2;
+    --pos: #15803d; --neg: #dc2626; --warn: #b45309;
+    --dot-ovr: #2563eb; --dot-note: #d97706;
+    --tz-bg: #0e7490; --tz-tx: #ffffff; --zs-bg: #15803d; --zs-tx: #ffffff;
+    --backdrop: rgba(17,24,39,0.45);
+  }
+}
+:root[data-theme="light"] {
+  color-scheme: light;
+  --bg: #eef0f3; --surface: #ffffff; --surface2: #f4f5f7; --input: #ffffff;
+  --border: #d4d7dd; --border-soft: #e5e7eb;
+  --text: #111827; --muted: #4b5563; --faint: #6b7280;
+  --title: #0f766e; --accent: #0f766e; --on-accent: #ffffff; --sel-bg: #e6f4f2;
+  --we: #f6f7f9; --ft-bg: #fde2e2;
+  --pos: #15803d; --neg: #dc2626; --warn: #b45309;
+  --dot-ovr: #2563eb; --dot-note: #d97706;
+  --tz-bg: #0e7490; --tz-tx: #ffffff; --zs-bg: #15803d; --zs-tx: #ffffff;
+  --backdrop: rgba(17,24,39,0.45);
+}
+
 * { box-sizing: border-box; margin: 0; padding: 0; }
-body { background: #0f172a; color: #e2e8f0; font-family: 'IBM Plex Mono', monospace; min-height: 100vh; }
+body { background: var(--bg); color: var(--text); font-family: 'IBM Plex Mono', monospace; min-height: 100vh; }
 
 /* HEADER */
-.header { background: linear-gradient(135deg,#1e3a5f,#0f172a); border-bottom: 1px solid #1e40af; padding: 14px 16px 10px; }
-.header h1 { font-family: 'IBM Plex Sans',sans-serif; color: #60a5fa; font-size: 19px; }
-.badge { font-size: 10px; color: #64748b; background: #1e293b; padding: 2px 7px; border-radius: 4px; display: inline-block; margin-top: 3px; }
-.header p { font-size: 11px; color: #475569; margin-top: 3px; }
+.header { background: var(--surface); border-bottom: 1px solid var(--border); padding: 14px 16px 10px; }
+.header h1 { font-family: 'IBM Plex Sans',sans-serif; color: var(--title); font-size: 19px; }
+.badge { font-size: 10px; color: var(--muted); background: var(--surface2); padding: 2px 7px; border-radius: 4px; display: inline-block; margin-top: 3px; }
+.header p { font-size: 11px; color: var(--faint); margin-top: 3px; }
 
 /* SAVE/LOAD BAR */
-.savebar { background: #1e293b; border-bottom: 1px solid #334155; padding: 10px 16px; }
+.savebar { background: var(--surface); border-bottom: 1px solid var(--border); padding: 10px 16px; }
 .save-row { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 6px; }
-.btn-sv { border: none; padding: 9px 14px; border-radius: 6px; cursor: pointer; font-size: 12px; font-family: inherit; font-weight: 600; }
-.btn-sv.blue { background: linear-gradient(135deg,#1e40af,#1d4ed8); color: #e0e7ff; }
-.btn-sv.teal { background: #0e7490; color: #cffafe; }
-.btn-sv.green { background: #16a34a; color: #fff; }
-.shint { font-size: 10px; color: #475569; }
+.btn-sv { border: 1px solid transparent; padding: 9px 14px; border-radius: 6px; cursor: pointer; font-size: 12px; font-family: inherit; font-weight: 600; }
+.btn-sv.blue { background: var(--accent); color: var(--on-accent); }
+.btn-sv.teal { background: var(--surface2); color: var(--text); border-color: var(--border); }
+.btn-sv.green { background: var(--accent); color: var(--on-accent); }
+.shint { font-size: 10px; color: var(--faint); }
 .load-input { display:none; margin-top:8px; }
 .load-input.show { display:block; }
-.file-hint { font-size:10px; color:#475569; margin-top:4px; }
+.state-box { width:100%; background: var(--input); border:1px solid var(--border); color: var(--text); border-radius:6px; padding:8px; font-size:10px; font-family:monospace; resize:vertical; min-height:60px; margin-top:6px; }
+.file-hint { font-size:10px; color: var(--faint); margin-top:4px; }
 .status-msg { font-size:11px; margin-top:6px; display:none; }
 .status-msg.show { display:block; }
-.status-msg.ok { color:#34d399; }
-.status-msg.err { color:#f87171; }
+.status-msg.ok { color: var(--pos); }
+.status-msg.err { color: var(--neg); }
 
 /* CONFIG */
-.config { background: #1e293b; border-bottom: 1px solid #334155; padding: 12px 16px; display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end; }
-.config label { font-size: 10px; color: #94a3b8; display: flex; flex-direction: column; gap: 3px; }
-.config select, .config input { background: #0f172a; border: 1px solid #334155; color: #e2e8f0; padding: 5px 7px; border-radius: 4px; font-size: 12px; font-family: inherit; }
-.config-hint { font-size: 10px; color: #475569; width: 100%; }
+.config { background: var(--surface); border-bottom: 1px solid var(--border); padding: 12px 16px; display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end; }
+.config label { font-size: 10px; color: var(--muted); display: flex; flex-direction: column; gap: 3px; }
+.config select, .config input { background: var(--input); border: 1px solid var(--border); color: var(--text); padding: 5px 7px; border-radius: 4px; font-size: 12px; font-family: inherit; }
+.config-hint { font-size: 10px; color: var(--faint); width: 100%; }
 
 /* SECTIONS */
 .section { padding: 12px 16px; }
-.section-title { font-size: 10px; color: #64748b; letter-spacing: 1px; margin-bottom: 8px; }
+.section-title { font-size: 10px; color: var(--muted); letter-spacing: 1px; margin-bottom: 8px; }
 
 /* FSK BAR */
-.fsk-bar { background: #1e293b; border: 1px solid #334155; border-radius: 6px; padding: 10px 14px; margin-bottom: 10px; display: flex; gap: 16px; flex-wrap: wrap; font-size: 12px; align-items: center; }
-.fsk-bar span { color: #94a3b8; }
+.fsk-bar { background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 10px 14px; margin-bottom: 10px; display: flex; gap: 16px; flex-wrap: wrap; font-size: 12px; align-items: center; }
+.fsk-bar span { color: var(--muted); }
 
 /* YEAR GRID */
 .year-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 6px; }
-.mcard { background: #1e293b; border: 1px solid #334155; border-radius: 6px; padding: 8px 10px; cursor: pointer; }
-.mcard.sel { background: #1e3a5f; border-color: #3b82f6; }
-.mcard.inactive { opacity: 0.3; pointer-events: none; }
-.mcard .mn { font-size: 10px; color: #64748b; margin-bottom: 3px; }
+.mcard { background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 8px 10px; cursor: pointer; }
+.mcard.sel { background: var(--sel-bg); border-color: var(--accent); }
+.mcard.inactive { opacity: 0.35; pointer-events: none; }
+.mcard .mn { font-size: 10px; color: var(--muted); margin-bottom: 3px; }
 .mcard .mf { font-size: 14px; font-weight: 600; }
-.mcard .md { font-size: 9px; color: #475569; margin-top: 1px; }
+.mcard .md { font-size: 9px; color: var(--faint); margin-top: 1px; }
+.mcard .dash { font-size: 11px; color: var(--faint); }
 
 /* WHAT-IF BOX */
-.whatif { background: #1e293b; border: 1px solid #334155; border-radius: 6px; padding: 10px 14px; margin-bottom: 10px; font-size: 11px; }
-.whatif .wi-title { font-size: 10px; color: #64748b; letter-spacing: 1px; margin-bottom: 6px; }
+.whatif { background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 10px 14px; margin-bottom: 10px; font-size: 11px; }
+.whatif .wi-title { font-size: 10px; color: var(--muted); letter-spacing: 1px; margin-bottom: 6px; }
 .wi-row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-bottom: 4px; }
-.wi-row label { color: #94a3b8; display: flex; align-items: center; gap: 6px; }
-.wi-row input { background: #0f172a; border: 1px solid #334155; color: #e2e8f0; padding: 4px 7px; border-radius: 4px; font-size: 12px; font-family: inherit; width: 60px; }
-.wi-result { margin-top: 6px; line-height: 1.6; color: #94a3b8; }
+.wi-row label { color: var(--muted); display: flex; align-items: center; gap: 6px; }
+.wi-row input { background: var(--input); border: 1px solid var(--border); color: var(--text); padding: 4px 7px; border-radius: 4px; font-size: 12px; font-family: inherit; width: 60px; }
+.wi-result { margin-top: 6px; line-height: 1.6; color: var(--muted); }
 
 /* MONTH NAV */
 .month-hdr { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; flex-wrap: wrap; gap: 8px; }
 .mnav { display: flex; align-items: center; gap: 8px; }
-.mnav button { background: #1e293b; border: 1px solid #334155; color: #94a3b8; padding: 4px 12px; border-radius: 4px; cursor: pointer; font-size: 14px; }
-.mname { font-family: 'IBM Plex Sans',sans-serif; font-size: 16px; font-weight: 600; color: #93c5fd; }
+.mnav button { background: var(--surface2); border: 1px solid var(--border); color: var(--text); padding: 4px 12px; border-radius: 4px; cursor: pointer; font-size: 14px; }
+.mname { font-family: 'IBM Plex Sans',sans-serif; font-size: 16px; font-weight: 600; color: var(--title); }
 .mstats { display: flex; gap: 10px; font-size: 11px; flex-wrap: wrap; }
-.mstats span { color: #94a3b8; }
-.mstats b { color: #e2e8f0; }
+.mstats span { color: var(--muted); }
+.mstats b { color: var(--text); }
 
 /* MONTH KORREKTUR */
-.mkorr { background: #1e293b; border: 1px solid #334155; border-radius: 6px; padding: 8px 12px; margin-bottom: 10px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; font-size: 11px; }
-.mkorr label { color: #94a3b8; display: flex; align-items: center; gap: 6px; }
-.mkorr input { background: #0f172a; border: 1px solid #334155; color: #e2e8f0; padding: 4px 7px; border-radius: 4px; font-size: 12px; font-family: inherit; width: 80px; }
-.mkorr-hint { font-size: 10px; color: #475569; }
+.mkorr { background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 8px 12px; margin-bottom: 10px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; font-size: 11px; }
+.mkorr label { color: var(--muted); display: flex; align-items: center; gap: 6px; }
+.mkorr input { background: var(--input); border: 1px solid var(--border); color: var(--text); padding: 4px 7px; border-radius: 4px; font-size: 12px; font-family: inherit; width: 80px; }
+.mkorr-hint { font-size: 10px; color: var(--faint); }
+.kontingent { font-size: 11px; color: var(--muted); line-height: 1.8; background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 7px 12px; margin-bottom: 10px; }
+.kontingent .klbl { display: inline-block; min-width: 80px; color: var(--text); }
+.kontingent b { color: var(--text); }
+.warn { color: var(--warn); }
 
 /* CALENDAR */
-.cal-wrap { background: #1e293b; border-radius: 8px; border: 1px solid #334155; overflow: hidden; }
-.cal-hdr { display: grid; grid-template-columns: repeat(7,1fr); background: #0f172a; }
-.cal-hdr div { text-align: center; padding: 5px 0; font-size: 10px; color: #475569; }
-.cal-week { display: grid; grid-template-columns: repeat(7,1fr); border-top: 1px solid #334155; }
-.cal-day { padding: 4px 3px 3px; min-height: 64px; border-left: 1px solid #1e293b; cursor: pointer; position: relative; }
+.cal-wrap { background: var(--surface); border-radius: 8px; border: 1px solid var(--border); overflow: hidden; }
+.cal-hdr { display: grid; grid-template-columns: repeat(7,1fr); background: var(--surface2); }
+.cal-hdr div { text-align: center; padding: 5px 0; font-size: 10px; color: var(--muted); }
+.cal-week { display: grid; grid-template-columns: repeat(7,1fr); border-top: 1px solid var(--border); }
+.cal-day { padding: 4px 3px 3px; min-height: 64px; border-left: 1px solid var(--border-soft); cursor: pointer; position: relative; }
 .cal-day:first-child { border-left: none; }
 .cal-day:active { opacity: 0.7; }
-.cal-day.we { background: #151f2e; }
-.cal-day.ft-bg { background: #1a0a0a; }
+.cal-day.we { background: var(--we); }
+.cal-day.ft-bg { background: var(--ft-bg); }
 .dnum { font-size: 10px; margin-bottom: 2px; }
-.dnum.normal { color: #94a3b8; }
-.dnum.weekend { color: #64748b; }
-.dnum.feiertag { color: #ef4444; }
+.dnum.normal { color: var(--text); }
+.dnum.weekend { color: var(--muted); }
+.dnum.feiertag { color: var(--neg); font-weight: 600; }
 .sbadge { font-size: 8px; font-weight: 600; padding: 2px 3px; border-radius: 3px; display: inline-block; margin-bottom: 1px; }
+.sbadge.free { border: 1px solid var(--border); color: var(--faint) !important; }
 .mod-badge { font-size: 7px; font-weight: 700; padding: 1px 3px; border-radius: 3px; display: inline-block; margin-left: 1px; }
-.mod-tz { background:#0e7490; color:#cffafe; }
-.mod-zs { background:#16a34a; color:#fff; }
-.ft-label { font-size: 7px; color: #ef4444; display: block; }
+.mod-tz { background: var(--tz-bg); color: var(--tz-tx); }
+.mod-zs { background: var(--zs-bg); color: var(--zs-tx); }
+.ft-label { font-size: 7px; color: var(--neg); display: block; }
 .ddelta { font-size: 8px; }
-.note-dot { position: absolute; bottom: 3px; left: 3px; width: 5px; height: 5px; border-radius: 50%; background: #f59e0b; }
-.ovr-dot { position: absolute; top: 3px; right: 3px; width: 5px; height: 5px; border-radius: 50%; background: #3b82f6; }
+.note-dot { position: absolute; bottom: 3px; left: 3px; width: 5px; height: 5px; border-radius: 50%; background: var(--dot-note); }
+.ovr-dot { position: absolute; top: 3px; right: 3px; width: 5px; height: 5px; border-radius: 50%; background: var(--dot-ovr); }
 
 /* WEEK SUM ROW */
-.week-sum { background: #0f172a; border-top: 1px solid #334155; display: grid; grid-template-columns: 1fr; padding: 3px 8px; font-size: 9px; color: #475569; }
+.week-sum { background: var(--surface2); border-top: 1px solid var(--border); display: grid; grid-template-columns: 1fr; padding: 3px 8px; font-size: 9px; color: var(--muted); }
 
-.pos { color: #34d399; }
-.neg { color: #f87171; }
-.zc  { color: #4ade80; }
+.pos { color: var(--pos); }
+.neg { color: var(--neg); }
+.zc  { color: var(--pos); }
+.muted { color: var(--faint); }
 
 /* LEGEND */
 .legend { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
-.li { display: flex; align-items: center; gap: 3px; font-size: 10px; color: #64748b; }
-.ld { width: 9px; height: 9px; border-radius: 2px; border: 1px solid #334155; flex-shrink: 0; }
-.hint { font-size: 10px; color: #475569; margin-top: 5px; line-height: 1.6; }
-.info-box { background: #1e293b; border: 1px solid #334155; border-radius: 6px; padding: 10px 12px; margin-top: 10px; font-size: 11px; color: #94a3b8; line-height: 1.6; }
+.li { display: flex; align-items: center; gap: 3px; font-size: 10px; color: var(--muted); }
+.ld { width: 9px; height: 9px; border-radius: 2px; border: 1px solid var(--border); flex-shrink: 0; }
+.hint { font-size: 10px; color: var(--faint); margin-top: 5px; line-height: 1.6; }
+.hint .c-ovr { color: var(--dot-ovr); } .hint .c-ft { color: var(--neg); } .hint .c-note { color: var(--dot-note); }
+.info-box { background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 10px 12px; margin-top: 10px; font-size: 11px; color: var(--muted); line-height: 1.6; }
 
 /* MODAL */
-.modal-bg { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.75); z-index: 100; align-items: flex-end; justify-content: center; }
+.modal-bg { display: none; position: fixed; inset: 0; background: var(--backdrop); z-index: 100; align-items: flex-end; justify-content: center; }
 .modal-bg.open { display: flex; }
-.modal { background: #1e293b; border: 1px solid #3b82f6; border-radius: 16px 16px 0 0; padding: 20px 16px 30px; width: 100%; max-width: 480px; max-height: 90vh; overflow-y: auto; }
-.modal h3 { font-family: 'IBM Plex Sans',sans-serif; color: #93c5fd; font-size: 15px; margin-bottom: 2px; }
-.modal .sub { font-size: 10px; color: #64748b; margin-bottom: 10px; }
-.grp-label { font-size: 9px; color: #475569; letter-spacing: 1px; margin: 10px 0 4px 2px; }
-.mopt { display: flex; align-items: center; padding: 11px 12px; border-radius: 8px; border: 1px solid #334155; cursor: pointer; gap: 10px; margin-bottom: 6px; }
+.modal { background: var(--surface); border: 1px solid var(--accent); border-radius: 16px 16px 0 0; padding: 20px 16px 30px; width: 100%; max-width: 480px; max-height: 90vh; overflow-y: auto; }
+.modal h3 { font-family: 'IBM Plex Sans',sans-serif; color: var(--title); font-size: 15px; margin-bottom: 2px; }
+.modal .sub { font-size: 10px; color: var(--muted); margin-bottom: 10px; }
+.modal-kont { font-size: 11px; color: var(--muted); background: var(--surface2); border-radius: 5px; padding: 5px 8px; margin: 6px 0 8px 0; line-height: 1.8; }
+.grp-label { font-size: 9px; color: var(--faint); letter-spacing: 1px; margin: 10px 0 4px 2px; }
+.mopt { display: flex; align-items: center; padding: 11px 12px; border-radius: 8px; border: 1px solid var(--border); cursor: pointer; gap: 10px; margin-bottom: 6px; }
 .mopt:active { opacity: 0.7; }
-.mopt.active { border-color: #3b82f6; background: #1e3a5f; }
-.mopt.reset { border-color: #334155; margin-top: 6px; }
+.mopt.active { border-color: var(--accent); background: var(--sel-bg); }
+.mopt.reset { border-color: var(--border); margin-top: 6px; }
 .mopt .oc { width: 12px; height: 12px; border-radius: 3px; flex-shrink: 0; }
-.mopt .otxt { font-size: 13px; color: #e2e8f0; flex: 1; }
-.mopt .oauto { font-size: 9px; color: #475569; }
+.mopt .oc.free { border: 1px solid var(--border); }
+.mopt .otxt { font-size: 13px; color: var(--text); flex: 1; }
+.mopt.reset .otxt { color: var(--muted); }
+.mopt .oauto { font-size: 9px; color: var(--faint); }
 
 /* MODIFIER TOGGLES */
-.mod-toggle { display: none; align-items: center; gap: 10px; padding: 11px 12px; border-radius: 8px; border: 1px solid #334155; margin-top: 8px; cursor: pointer; }
+.mod-toggle { display: none; align-items: center; gap: 10px; padding: 11px 12px; border-radius: 8px; border: 1px solid var(--border); margin-top: 8px; cursor: pointer; }
 .mod-toggle.show { display: flex; }
-.mod-toggle.on { border-color: #3b82f6; background: #1e3a5f; }
-.mod-toggle .chk { width: 18px; height: 18px; border-radius: 4px; border: 2px solid #64748b; flex-shrink: 0; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:700; color:#0f172a; }
-.mod-toggle.on .chk { background: #3b82f6; border-color:#3b82f6; color:#fff; }
-.mod-toggle .ttxt { font-size: 13px; color: #e2e8f0; flex: 1; }
-.mod-toggle .tinfo { font-size: 10px; color: #64748b; }
-.mod-toggle.on .tinfo { color: #93c5fd; }
+.mod-toggle.on { border-color: var(--accent); background: var(--sel-bg); }
+.mod-toggle .chk { width: 18px; height: 18px; border-radius: 4px; border: 2px solid var(--faint); flex-shrink: 0; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:700; color: var(--on-accent); }
+.mod-toggle.on .chk { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+.mod-toggle .ttxt { font-size: 13px; color: var(--text); flex: 1; }
+.mod-toggle .tinfo { font-size: 10px; color: var(--muted); }
+.mod-toggle.on .tinfo { color: var(--title); }
 
 /* MH INPUT */
 .mh-input { display:none; margin-top:8px; }
 .mh-input.show { display:block; }
-.mh-input input { background: #0f172a; border: 1px solid #334155; color: #e2e8f0; padding: 8px 10px; border-radius: 6px; font-size: 14px; font-family: inherit; width: 100%; }
-.mh-input .mi-hint { font-size: 10px; color: #475569; margin-top: 4px; }
+.mh-input input { background: var(--input); border: 1px solid var(--border); color: var(--text); padding: 8px 10px; border-radius: 6px; font-size: 14px; font-family: inherit; width: 100%; }
+.mh-input .mi-hint { font-size: 10px; color: var(--faint); margin-top: 4px; }
 
 /* NOTE INPUT */
 .note-section { margin-top: 10px; }
-.note-section label { font-size: 10px; color: #94a3b8; display:block; margin-bottom:4px; }
-.note-section textarea { background: #0f172a; border: 1px solid #334155; color: #e2e8f0; border-radius: 6px; padding: 8px; font-size: 12px; font-family: inherit; width: 100%; resize: vertical; min-height: 50px; }
+.note-section label { font-size: 10px; color: var(--muted); display:block; margin-bottom:4px; }
+.note-section textarea { background: var(--input); border: 1px solid var(--border); color: var(--text); border-radius: 6px; padding: 8px; font-size: 12px; font-family: inherit; width: 100%; resize: vertical; min-height: 50px; }
 
-.btn-apply { margin-top: 10px; width: 100%; padding: 11px; background: #1e40af; border: none; color: #e0e7ff; border-radius: 8px; cursor: pointer; font-size: 14px; font-family: inherit; font-weight: 600; }
-.modal-close { margin-top: 8px; width: 100%; padding: 10px; background: #0f172a; border: 1px solid #334155; color: #94a3b8; border-radius: 8px; cursor: pointer; font-size: 13px; font-family: inherit; }
+.btn-apply { margin-top: 10px; width: 100%; padding: 11px; background: var(--accent); border: none; color: var(--on-accent); border-radius: 8px; cursor: pointer; font-size: 14px; font-family: inherit; font-weight: 600; }
+.modal-close { margin-top: 8px; width: 100%; padding: 10px; background: var(--surface2); border: 1px solid var(--border); color: var(--muted); border-radius: 8px; cursor: pointer; font-size: 13px; font-family: inherit; }
 
 /* LOGIN */
-.login-bg { position: fixed; inset: 0; background: #0f172a; z-index: 200; display: none; align-items: center; justify-content: center; padding: 16px; }
+.login-bg { position: fixed; inset: 0; background: var(--bg); z-index: 200; display: none; align-items: center; justify-content: center; padding: 16px; }
 .login-bg.open { display: flex; }
-.login-box { background: #1e293b; border: 1px solid #1e40af; border-radius: 12px; padding: 22px 18px; width: 100%; max-width: 360px; }
-.login-box h2 { font-family: 'IBM Plex Sans',sans-serif; color: #60a5fa; font-size: 18px; margin-bottom: 4px; }
-.login-box p { font-size: 11px; color: #64748b; margin-bottom: 14px; }
-.login-box label { font-size: 10px; color: #94a3b8; display: block; margin-bottom: 3px; }
-.login-box input { background: #0f172a; border: 1px solid #334155; color: #e2e8f0; padding: 10px; border-radius: 6px; font-size: 16px; font-family: inherit; width: 100%; margin-bottom: 10px; }
-.login-err { font-size: 12px; color: #f87171; min-height: 16px; margin-bottom: 6px; }
-.acct-row { display: flex; align-items: center; gap: 8px; margin-top: 6px; font-size: 10px; color: #64748b; flex-wrap: wrap; }
-.acct-row button { background: #1e293b; border: 1px solid #334155; color: #94a3b8; padding: 3px 9px; border-radius: 4px; font-size: 10px; font-family: inherit; cursor: pointer; }
+.login-box { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 22px 18px; width: 100%; max-width: 360px; }
+.login-box h2 { font-family: 'IBM Plex Sans',sans-serif; color: var(--title); font-size: 18px; margin-bottom: 4px; }
+.login-box p { font-size: 11px; color: var(--muted); margin-bottom: 14px; }
+.login-box label { font-size: 10px; color: var(--muted); display: block; margin-bottom: 3px; }
+.login-box input { background: var(--input); border: 1px solid var(--border); color: var(--text); padding: 10px; border-radius: 6px; font-size: 16px; font-family: inherit; width: 100%; margin-bottom: 10px; }
+.login-err { font-size: 12px; color: var(--neg); min-height: 16px; margin-bottom: 6px; }
+.acct-row { display: flex; align-items: center; gap: 8px; margin-top: 6px; font-size: 10px; color: var(--muted); flex-wrap: wrap; }
+.acct-row button { background: var(--surface2); border: 1px solid var(--border); color: var(--text); padding: 3px 9px; border-radius: 4px; font-size: 10px; font-family: inherit; cursor: pointer; }
 </style>
 </head>
 <body>
@@ -183,7 +238,7 @@ body { background: #0f172a; color: #e2e8f0; font-family: 'IBM Plex Mono', monosp
 </div>
 
 <div class="header">
-  <h1>⏱ Schichtplaner v5.3</h1>
+  <h1>⏱ Schichtplaner v5.4</h1>
   <span class="badge" id="badgeText">2F · 2S · 2N · 4frei · Bayern · 35h/Woche</span>
   <p>Tippe auf einen Tag um ihn zu bearbeiten</p>
   <div class="acct-row" id="acctRow" style="display:none">
@@ -201,13 +256,13 @@ body { background: #0f172a; color: #e2e8f0; font-family: 'IBM Plex Mono', monosp
   <div class="shint">Kopiere den Text in die Notizen-App · Zum Laden wieder einfügen</div>
 
   <div class="load-input" id="savePanel">
-    <textarea id="saveBox" readonly style="width:100%;background:#0f172a;border:1px solid #334155;color:#e2e8f0;border-radius:6px;padding:8px;font-size:10px;font-family:monospace;resize:vertical;min-height:60px;margin-top:6px;"></textarea>
+    <textarea id="saveBox" class="state-box" readonly></textarea>
     <button class="btn-sv green" style="margin-top:6px;width:100%" onclick="copySaveBox()">In Zwischenablage kopieren</button>
     <div class="file-hint">Text manuell markieren & kopieren falls der Button nicht geht · Dann in Notizen einfügen</div>
   </div>
 
   <div class="load-input" id="loadPanel">
-    <textarea id="loadBox" placeholder="Hier den gespeicherten Text einfügen..." style="width:100%;background:#0f172a;border:1px solid #334155;color:#e2e8f0;border-radius:6px;padding:8px;font-size:10px;font-family:monospace;resize:vertical;min-height:60px;margin-top:6px;"></textarea>
+    <textarea id="loadBox" class="state-box" placeholder="Hier den gespeicherten Text einfügen..."></textarea>
     <button class="btn-sv teal" style="margin-top:6px;width:100%" onclick="applyLoadBox()">Stand übernehmen</button>
   </div>
 
@@ -248,6 +303,16 @@ body { background: #0f172a; color: #e2e8f0; font-family: 'IBM Plex Mono', monosp
       <option value="32">32h/Woche</option>
       <option value="30">30h/Woche</option>
       <option value="28">28h/Woche</option>
+    </select>
+  </label>
+  <label>DESIGN
+    <select id="selTheme" onchange="onLookChange()">
+      <option value="auto">Automatisch</option><option value="light">Hell</option><option value="dark">Dunkel</option>
+    </select>
+  </label>
+  <label>SCHICHTFARBEN
+    <select id="selPalette" onchange="onLookChange()">
+      <option value="pep">PEP</option><option value="klassisch">Klassisch</option>
     </select>
   </label>
   <label><span id="lblUrlaub">URLAUB 2026 (Tage)</span>
@@ -297,30 +362,17 @@ body { background: #0f172a; color: #e2e8f0; font-family: 'IBM Plex Mono', monosp
     </label>
     <span class="mkorr-hint">+0,07h Rundungsausgleich (1.) − 0,58h SoBS (letzter Tag) = −0,51h netto</span>
   </div>
-  <div id="kontingentBox" style="font-size:11px;color:#94a3b8;line-height:1.8;background:#1e293b;border:1px solid #334155;border-radius:6px;padding:7px 12px;margin-bottom:10px"></div>
+  <div id="kontingentBox" class="kontingent"></div>
 
   <div class="cal-wrap">
     <div class="cal-hdr"><div>Mo</div><div>Di</div><div>Mi</div><div>Do</div><div>Fr</div><div>Sa</div><div>So</div></div>
     <div id="calBody"></div>
   </div>
 
-  <div class="legend">
-    <div class="li"><div class="ld" style="background:#fbbf24"></div>Früh</div>
-    <div class="li"><div class="ld" style="background:#f97316"></div>Spät</div>
-    <div class="li"><div class="ld" style="background:#1e40af"></div>Nacht</div>
-    <div class="li"><div class="ld" style="background:#dc2626"></div>Feiertag</div>
-    <div class="li"><div class="ld" style="background:#16a34a"></div>+ZS</div>
-    <div class="li"><div class="ld" style="background:#7c3aed"></div>Urlaub</div>
-    <div class="li"><div class="ld" style="background:#0e7490"></div>T-Zug</div>
-    <div class="li"><div class="ld" style="background:#be123c"></div>Krank/AU</div>
-    <div class="li"><div class="ld" style="background:#92400e"></div>Dienstfrei/#-Tag</div>
-    <div class="li"><div class="ld" style="background:#374151"></div>Freischicht</div>
-    <div class="li"><div class="ld" style="background:#1e3a5f;border-color:#3b82f6"></div>Unbez. Freistellung</div>
-    <div class="li"><div class="ld" style="background:#dc2626"></div>FT↺ = Feiertag verschoben (Nacht am Vorabend)</div>
-  </div>
+  <div class="legend" id="legend"></div>
   <div class="hint">
     Auf jeden Tag tippen um ihn zu bearbeiten<br>
-    <span style="color:#3b82f6">●</span> = manuell geändert · <span style="color:#ef4444">rote Zahl</span> = Feiertag (bearbeitbar) · <span style="color:#f59e0b">●</span> = Notiz
+    <span class="c-ovr">●</span> = manuell geändert · <span class="c-ft">rote Zahl</span> = Feiertag (bearbeitbar) · <span class="c-note">●</span> = Notiz
   </div>
   <div class="info-box" id="infoBox"></div>
 </div>
@@ -330,7 +382,7 @@ body { background: #0f172a; color: #e2e8f0; font-family: 'IBM Plex Mono', monosp
   <div class="modal">
     <h3 id="modalTitle"></h3>
     <div class="sub" id="modalSub"></div>
-    <div id="modalKontingent" style="font-size:11px;color:#64748b;background:#1e293b;border-radius:5px;padding:5px 8px;margin:6px 0 8px 0;line-height:1.8"></div>
+    <div id="modalKontingent" class="modal-kont"></div>
     <div id="modalOpts"></div>
 
     <div class="mod-toggle" id="tzToggle" onclick="toggleMod('tz')">
@@ -383,6 +435,55 @@ const TYPES = {
   // Nacht am Vorabend eines Feiertags fällt aus (Tag läuft 22–22 Uhr, die Nacht liegt im Feiertag) → wie Feiertag, FSK 0
   FV: { label:"Feiertag (verschoben)", short:"FT↺", color:"#dc2626", tc:"#fff",  mods:{tz:false, zs:false, mh:false} },
 };
+
+// ===== SCHICHTFARBEN =====
+// [Hintergrund, Schrift] je Tagestyp. "pep" = Farben wie im PEP/My Shift Balancer.
+const PALETTES = {
+  klassisch: {
+    F:["#fbbf24","#1c1917"], S:["#f97316","#ffffff"], N:["#1e40af","#e0e7ff"], DF:["#92400e","#fef3c7"],
+    FS:["#4b5563","#f3f4f6"], UF:["#1e3a5f","#bfdbfe"], UR:["#7c3aed","#ffffff"], KR:["#be123c","#ffffff"],
+    FT:["#dc2626","#ffffff"], FV:["#dc2626","#ffffff"],
+  },
+  pep: {
+    F:["#0b84d6","#ffffff"], S:["#c0127a","#ffffff"], N:["#6b2193","#ffffff"], DF:["#3a8bb0","#ffffff"],
+    FS:["#4b5563","#f3f4f6"], UF:["#334155","#e2e8f0"], UR:["#16a34a","#ffffff"], KR:["#e11d48","#ffffff"],
+    FT:["#dc2626","#ffffff"], FV:["#dc2626","#ffffff"],
+  },
+};
+let themeSetting   = "auto"; // auto | light | dark
+let paletteSetting = "pep";  // pep | klassisch
+
+function applyLook() {
+  const root = document.documentElement;
+  if (themeSetting === "auto") root.removeAttribute("data-theme");
+  else root.setAttribute("data-theme", themeSetting);
+  const pal = PALETTES[paletteSetting] || PALETTES.pep;
+  for (const k in pal) { TYPES[k].color = pal[k][0]; TYPES[k].tc = pal[k][1]; }
+  document.getElementById("selTheme").value   = themeSetting;
+  document.getElementById("selPalette").value = paletteSetting;
+}
+
+function onLookChange() {
+  themeSetting   = document.getElementById("selTheme").value;
+  paletteSetting = document.getElementById("selPalette").value;
+  applyLook();
+  render();
+}
+
+// kleines Farbschild in der Farbe des Tagestyps (für die Monatskarten)
+function cntBadge(type, txt) {
+  return '<span class="mod-badge" style="background:' + TYPES[type].color + ';color:' + TYPES[type].tc + '">' + txt + '</span>';
+}
+
+function renderLegend() {
+  const items = [["F","Früh"],["S","Spät"],["N","Nacht"],["DF","Dienstfrei/#-Tag"],["UR","Urlaub"],["KR","Krank/AU"],
+                 ["FT","Feiertag"],["FS","Freischicht"],["UF","Unbez. Freistellung"]];
+  document.getElementById("legend").innerHTML =
+    items.map(([k,l]) => '<div class="li"><div class="ld" style="background:' + TYPES[k].color + '"></div>' + l + '</div>').join("") +
+    '<div class="li"><span class="mod-badge mod-zs">ZS</span>Zusatzschicht</div>' +
+    '<div class="li"><span class="mod-badge mod-tz">TZ</span>T-Zug</div>' +
+    '<div class="li"><div class="ld" style="background:' + TYPES.FV.color + '"></div>FT↺ = Feiertag verschoben (Nacht am Vorabend)</div>';
+}
 
 const OPT_GROUPS = [
   { label:"ANWESENHEIT",         types:["F","S","N"]       },
@@ -551,20 +652,20 @@ function renderKontingent() {
   }
   const urRest  = urlaubAnspruch - urV - urP;
   const tzRest  = tzugAnspruch   - tzV - tzP;
-  const col = v => v < 0 ? "#f87171" : v === 0 ? "#fbbf24" : "#86efac";
+  const col = v => v < 0 ? "var(--neg)" : v === 0 ? "var(--warn)" : "var(--pos)";
   document.getElementById("kontingentBox").innerHTML =
-    '<span style="display:inline-block;min-width:80px;color:#e2e8f0">🏖 Urlaub</span>' +
+    '<span class="klbl">🏖 Urlaub</span>' +
     ' Gesamt: <b>' + urlaubAnspruch + '</b>' +
     ' &nbsp;|&nbsp; Verbraucht: <b>' + urV + '</b>' +
     ' &nbsp;|&nbsp; Verplant: <b>' + urP + '</b>' +
     ' &nbsp;|&nbsp; Rest: <b style="color:' + col(urRest) + '">' + urRest + '</b><br>' +
-    '<span style="display:inline-block;min-width:80px;color:#e2e8f0">⏱ T-Zug</span>' +
+    '<span class="klbl">⏱ T-Zug</span>' +
     ' Gesamt: <b>' + tzugAnspruch + '</b>' +
     ' &nbsp;|&nbsp; Verbraucht: <b>' + tzV + '</b>' +
     ' &nbsp;|&nbsp; Verplant: <b>' + tzP + '</b>' +
     ' &nbsp;|&nbsp; Rest: <b style="color:' + col(tzRest) + '">' + tzRest + '</b>' +
     (urlaubMap[year] === undefined || tzugMap[year] === undefined
-      ? '<br><span style="color:#fbbf24">⚠ Anspruch für ' + year + ' noch nicht eingetragen – Standardwerte (oben bei URLAUB/T-ZUG ' + year + ' eintragen)</span>'
+      ? '<br><span class="warn">⚠ Anspruch für ' + year + ' noch nicht eingetragen – Standardwerte (oben bei URLAUB/T-ZUG ' + year + ' eintragen)</span>'
       : '');
 }
 
@@ -702,6 +803,7 @@ function render() {
   document.getElementById("badgeText").textContent = "2F · 2S · 2N · 4frei · Bayern · " + document.getElementById("selModell").value + "h/Woche";
   loadKorr();
   renderAnspruchInputs();
+  renderLegend();
 
   lastMonths = computeYear(year);
   const firstA  = lastMonths.find(m => m.active);
@@ -719,17 +821,17 @@ function render() {
   renderKontingent();
 
   document.getElementById("yearGrid").innerHTML = lastMonths.map((ms, mi) => {
-    if (!ms.active) return '<div class="mcard inactive"><div class="mn">' + MONTHS[mi].slice(0,3).toUpperCase() + '</div><div style="font-size:11px;color:#334155">—</div></div>';
+    if (!ms.active) return '<div class="mcard inactive"><div class="mn">' + MONTHS[mi].slice(0,3).toUpperCase() + '</div><div class="dash">—</div></div>';
     return '<div class="mcard' + (mi===selMonth?" sel":"") + '" onclick="selM(' + mi + ')">' +
       '<div class="mn">' + MONTHS[mi].slice(0,3).toUpperCase() + '</div>' +
       '<div class="mf ' + (ms.fskE>=0?"pos":"neg") + '">' + (ms.fskE>=0?"+":"") + ms.fskE.toFixed(2) + 'h</div>' +
       '<div class="md">Δ ' + (ms.delta>=0?"+":"") + ms.delta.toFixed(2) +
       (ms.nZS>0 ? ' <span class="zc">+' + ms.nZS + 'ZS</span>' : '') +
-      (ms.nUR>0 ? ' <span style="color:#a78bfa">+' + ms.nUR + 'UR</span>' : '') +
-      (ms.nTZ>0 ? ' <span style="color:#67e8f9">+' + ms.nTZ + 'TZ</span>' : '') +
-      (ms.nKR>0 ? ' <span style="color:#fda4af">+' + ms.nKR + 'KR</span>' : '') +
-      (ms.korr!==0 ? ' <span style="color:#f59e0b">K' + (ms.korr>=0?"+":"") + ms.korr.toFixed(2) + '</span>' : '') +
-      (ms.sobs!==0 ? ' <span style="color:#f87171">SoBS' + (ms.sobs>=0?"+":"") + ms.sobs.toFixed(2) + '</span>' : '') +
+      (ms.nUR>0 ? ' ' + cntBadge("UR", '+' + ms.nUR + 'UR') : '') +
+      (ms.nTZ>0 ? ' <span class="mod-badge mod-tz">+' + ms.nTZ + 'TZ</span>' : '') +
+      (ms.nKR>0 ? ' ' + cntBadge("KR", '+' + ms.nKR + 'KR') : '') +
+      (ms.korr!==0 ? ' <span class="warn">K' + (ms.korr>=0?"+":"") + ms.korr.toFixed(2) + '</span>' : '') +
+      (ms.sobs!==0 ? ' <span class="neg">SoBS' + (ms.sobs>=0?"+":"") + ms.sobs.toFixed(2) + '</span>' : '') +
       '</div></div>';
   }).join("");
 
@@ -737,7 +839,7 @@ function render() {
   document.getElementById("mname").textContent = MONTHS[selMonth] + " " + year;
 
   if (!ms.active) {
-    document.getElementById("mstats").innerHTML = '<span style="color:#475569">Vor dem Startmonat</span>';
+    document.getElementById("mstats").innerHTML = '<span class="muted">Vor dem Startmonat</span>';
     document.getElementById("calBody").innerHTML = "";
     document.getElementById("infoBox").innerHTML = "";
     return;
@@ -751,8 +853,8 @@ function render() {
 
   const needZS = ms.fskE < 0 ? Math.ceil(Math.abs(ms.fskE) / 1.08) : 0;
   document.getElementById("infoBox").innerHTML = ms.fskE < 0
-    ? '<b style="color:#f87171">FSK-Stand: ' + ms.fskE.toFixed(2) + 'h</b> → ca. <b>' + needZS + ' Zusatzschicht(en)</b> nötig um auf 0 zu kommen.'
-    : '<b style="color:#34d399">FSK-Stand: +' + ms.fskE.toFixed(2) + 'h</b> – alles im grünen Bereich.';
+    ? '<b class="neg">FSK-Stand: ' + ms.fskE.toFixed(2) + 'h</b> → ca. <b>' + needZS + ' Zusatzschicht(en)</b> nötig um auf 0 zu kommen.'
+    : '<b class="pos">FSK-Stand: +' + ms.fskE.toFixed(2) + 'h</b> – alles im grünen Bereich.';
 
   // Calendar
   const firstDow = (new Date(year, selMonth, 1).getDay() + 6) % 7;
@@ -802,7 +904,7 @@ function render() {
 
       html += '<div class="cal-day ' + cellCls + '" onclick="openModal(\'' + day.ds + '\')">' +
         '<div class="dnum ' + dnumCls + '">' + day.d + '</div>' +
-        '<span class="sbadge" style="background:' + bg + ';color:' + t.tc + ';' + (bg==="transparent"?"border:1px solid #334155":"") + '">' + lbl + '</span>' +
+        '<span class="sbadge' + (bg==="transparent"?" free":"") + '" style="background:' + bg + ';color:' + t.tc + '">' + lbl + '</span>' +
         tzBadge + zsBadge + ftLbl + dH + dot + noteDot + '</div>';
     }
     html += '</div>';
@@ -870,7 +972,7 @@ function openModal(ds) {
   }
   const urRest = getUrlaub(year) - urBisHeute;
   const tzRest = getTzug(year)   - tzBisHeute;
-  const col = v => v <= 0 ? "#f87171" : v <= 3 ? "#fbbf24" : "#64748b";
+  const col = v => v <= 0 ? "var(--neg)" : v <= 3 ? "var(--warn)" : "var(--text)";
   document.getElementById("modalKontingent").innerHTML =
     '🏖 Urlaub verfügbar: <b style="color:' + col(urRest) + '">' + urRest + ' Tage</b>' +
     ' &nbsp;&nbsp; ⏱ T-Zug verfügbar: <b style="color:' + col(tzRest) + '">' + tzRest + ' Tage</b>';
@@ -887,7 +989,7 @@ function renderModalOpts(autoT, hasOvr) {
       const isActive = modalType === type;
       const isAuto   = autoT === type && !hasOvr;
       html += '<div class="mopt' + (isActive ? " active" : "") + '" onclick="selectType(\'' + type + '\')">' +
-        '<div class="oc" style="background:' + t.color + ';' + (t.color === "transparent" ? "border:1px solid #334155" : "") + '"></div>' +
+        '<div class="oc' + (t.color === "transparent" ? " free" : "") + '" style="background:' + t.color + '"></div>' +
         '<span class="otxt">' + t.label + '</span>' +
         (isAuto ? '<span class="oauto">(auto)</span>' : '') +
         '</div>';
@@ -896,7 +998,7 @@ function renderModalOpts(autoT, hasOvr) {
   if (hasOvr) {
     html += '<div class="mopt reset" onclick="resetType()">' +
       '<span style="font-size:16px;margin-right:4px">↩</span>' +
-      '<span class="otxt" style="color:#94a3b8">Zurücksetzen · Auto: ' + TYPES[autoT].label + '</span>' +
+      '<span class="otxt">Zurücksetzen · Auto: ' + TYPES[autoT].label + '</span>' +
       '</div>';
   }
   document.getElementById("modalOpts").innerHTML = html;
@@ -1044,6 +1146,8 @@ function buildState() {
     notes:         notes,
     urlaubMap:     urlaubMap,
     tzugMap:       tzugMap,
+    theme:         themeSetting,
+    palette:       paletteSetting,
   };
 }
 
@@ -1113,6 +1217,9 @@ function applyState(s) {
   if (s.tzugMap) Object.assign(tzugMap, s.tzugMap);
   else if (s.tzugAnspruch !== undefined) tzugMap[sy] = s.tzugAnspruch;
   viewYear = s.viewYear !== undefined ? parseInt(s.viewYear) : parseInt(sy);
+  themeSetting   = s.theme   || "auto";
+  paletteSetting = s.palette || "pep";
+  applyLook();
   showStatus("✅ Stand geladen!", "ok");
   render();
 }
@@ -1235,6 +1342,7 @@ async function doLogout() {
   location.reload(); // Seite leeren, damit keine Daten sichtbar bleiben
 }
 
+applyLook();
 render();
 
 (async () => {
