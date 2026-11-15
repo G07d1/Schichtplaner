@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-<title>Schichtplaner v5.1</title>
+<title>Schichtplaner v5.2</title>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;600;700&display=swap" rel="stylesheet">
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -183,7 +183,7 @@ body { background: #0f172a; color: #e2e8f0; font-family: 'IBM Plex Mono', monosp
 </div>
 
 <div class="header">
-  <h1>⏱ Schichtplaner v5.1</h1>
+  <h1>⏱ Schichtplaner v5.2</h1>
   <span class="badge" id="badgeText">2F · 2S · 2N · 4frei · Bayern · 35h/Woche</span>
   <p>Tippe auf einen Tag um ihn zu bearbeiten</p>
   <div class="acct-row" id="acctRow" style="display:none">
@@ -216,8 +216,8 @@ body { background: #0f172a; color: #e2e8f0; font-family: 'IBM Plex Mono', monosp
 
 <!-- CONFIG -->
 <div class="config">
-  <label>JAHR
-    <select id="selYear"><option>2025</option><option selected>2026</option><option>2027</option></select>
+  <label>STARTJAHR
+    <select id="selYear"><option>2025</option><option selected>2026</option><option>2027</option><option>2028</option></select>
   </label>
   <label>STARTMONAT
     <select id="selStartMonth">
@@ -250,13 +250,13 @@ body { background: #0f172a; color: #e2e8f0; font-family: 'IBM Plex Mono', monosp
       <option value="28">28h/Woche</option>
     </select>
   </label>
-  <label>URLAUB GESAMT (Tage)
+  <label><span id="lblUrlaub">URLAUB 2026 (Tage)</span>
     <input type="number" id="inpUrlaubA" value="30" step="1" min="0" style="width:85px" onchange="saveAnspruch()">
   </label>
-  <label>T-ZUG GESAMT (Tage)
+  <label><span id="lblTzug">T-ZUG 2026 (Tage)</span>
     <input type="number" id="inpTzugA" value="8" step="1" min="0" style="width:85px" onchange="saveAnspruch()">
   </label>
-  <div class="config-hint">💡 FSK-Stand vom letzten Zeitnachweis · Startmonat = erster Monat der berechnet wird · Nachtschichturlaub zum Urlaub addieren</div>
+  <div class="config-hint">💡 Startjahr/Startmonat/FSK-Stand = Startpunkt der Berechnung (vom letzten Zeitnachweis) · danach läuft der FSK automatisch über die Jahre weiter · Urlaub/T-Zug gelten für das angezeigte Jahr (inkl. Rest- und Nachtschichturlaub)</div>
 </div>
 
 <!-- YEAR SECTION -->
@@ -392,8 +392,18 @@ const korrMap   = {};
 const sobsMap   = {};
 const notes     = {};
 let selMonth    = 5;
-let urlaubAnspruch = 30;
-let tzugAnspruch   = 8;
+let viewYear    = 2026;          // angezeigtes Jahr (kann über das Startjahr hinausgehen)
+const MAX_YEARS = 5;             // so viele Jahre nach dem Startjahr sind erreichbar
+const urlaubMap = {};            // Urlaubsanspruch pro Jahr, z.B. {"2026": 32}
+const tzugMap   = {};            // T-Zug-Anspruch pro Jahr
+const DEF_URLAUB = 30, DEF_TZUG = 8;
+
+function getStartYear()  { return parseInt(document.getElementById("selYear").value); }
+function getStartMonth() { return parseInt(document.getElementById("selStartMonth").value); }
+function getUrlaub(y) { return urlaubMap[y] !== undefined ? urlaubMap[y] : DEF_URLAUB; }
+function getTzug(y)   { return tzugMap[y]   !== undefined ? tzugMap[y]   : DEF_TZUG; }
+// erster aktiver Monat im angezeigten Jahr (Startmonat nur im Startjahr, sonst Januar)
+function firstActiveMonth(y) { return y === getStartYear() ? getStartMonth() : 0; }
 let modalDs     = null;
 let modalType   = null;
 let modalTz     = false;
@@ -478,27 +488,34 @@ function getDayInfo(ds, date, base, ft) {
 }
 
 function saveKorr() {
-  const year = parseInt(document.getElementById("selYear").value);
-  korrMap[year + "-" + selMonth] = parseFloat(document.getElementById("inpKorr").value) || 0;
+  korrMap[viewYear + "-" + selMonth] = parseFloat(document.getElementById("inpKorr").value) || 0;
   render();
 }
 
 function saveSobs() {
-  const year = parseInt(document.getElementById("selYear").value);
-  sobsMap[year + "-" + selMonth] = parseFloat(document.getElementById("inpSobs").value) || 0;
+  sobsMap[viewYear + "-" + selMonth] = parseFloat(document.getElementById("inpSobs").value) || 0;
   render();
 }
 
 function saveAnspruch() {
-  urlaubAnspruch = parseInt(document.getElementById("inpUrlaubA").value) || 0;
-  tzugAnspruch   = parseInt(document.getElementById("inpTzugA").value)   || 0;
+  urlaubMap[viewYear] = parseInt(document.getElementById("inpUrlaubA").value) || 0;
+  tzugMap[viewYear]   = parseInt(document.getElementById("inpTzugA").value)   || 0;
   renderKontingent();
   scheduleSave();
 }
 
+function renderAnspruchInputs() {
+  document.getElementById("lblUrlaub").textContent = "URLAUB " + viewYear + " (Tage)";
+  document.getElementById("lblTzug").textContent   = "T-ZUG " + viewYear + " (Tage)";
+  document.getElementById("inpUrlaubA").value = getUrlaub(viewYear);
+  document.getElementById("inpTzugA").value   = getTzug(viewYear);
+}
+
 function renderKontingent() {
   if (!lastMonths.length) return;
-  const year  = parseInt(document.getElementById("selYear").value);
+  const year  = viewYear;
+  const urlaubAnspruch = getUrlaub(year);
+  const tzugAnspruch   = getTzug(year);
   const today = new Date();
   let urV=0, urP=0, tzV=0, tzP=0;
   for (let m = 0; m < 12; m++) {
@@ -525,22 +542,36 @@ function renderKontingent() {
     ' Gesamt: <b>' + tzugAnspruch + '</b>' +
     ' &nbsp;|&nbsp; Verbraucht: <b>' + tzV + '</b>' +
     ' &nbsp;|&nbsp; Verplant: <b>' + tzP + '</b>' +
-    ' &nbsp;|&nbsp; Rest: <b style="color:' + col(tzRest) + '">' + tzRest + '</b>';
+    ' &nbsp;|&nbsp; Rest: <b style="color:' + col(tzRest) + '">' + tzRest + '</b>' +
+    (urlaubMap[year] === undefined || tzugMap[year] === undefined
+      ? '<br><span style="color:#fbbf24">⚠ Anspruch für ' + year + ' noch nicht eingetragen – Standardwerte (oben bei URLAUB/T-ZUG ' + year + ' eintragen)</span>'
+      : '');
 }
 
 function loadKorr() {
-  const year = parseInt(document.getElementById("selYear").value);
-  const key  = year + "-" + selMonth;
+  const key  = viewYear + "-" + selMonth;
   const kval = korrMap[key] !== undefined ? korrMap[key] : 0.07;
   const sval = sobsMap[key] !== undefined ? sobsMap[key] : -0.58;
   document.getElementById("inpKorr").value = kval.toFixed(2);
   document.getElementById("inpSobs").value = sval.toFixed(2);
 }
 
-function compute() {
-  const year    = parseInt(document.getElementById("selYear").value);
-  const startM  = parseInt(document.getElementById("selStartMonth").value);
-  const fskInit = parseFloat(document.getElementById("inpFsk").value) || 0;
+// Rechnet vom Startpunkt (Startjahr/Startmonat/FSK-Stand) Jahr für Jahr bis zum gewünschten Jahr.
+// Der FSK-Stand Ende Dezember wird automatisch als Stand für Januar des Folgejahres übernommen.
+function computeYear(targetYear) {
+  const sy = getStartYear();
+  if (targetYear < sy) return compute(targetYear, 12, 0); // vor dem Startjahr: alles inaktiv
+  let fsk = parseFloat(document.getElementById("inpFsk").value) || 0;
+  let months = [];
+  for (let y = sy; y <= targetYear; y++) {
+    months = compute(y, y === sy ? getStartMonth() : 0, fsk);
+    const lastA = [...months].reverse().find(m => m.active);
+    if (lastA) fsk = lastA.fskE;
+  }
+  return months;
+}
+
+function compute(year, startM, fskInit) {
   const base    = getBase();
   const ft      = getFT(year);
   let fsk       = fskInit;
@@ -640,22 +671,28 @@ function renderWhatIf() {
 
 function render() {
   scheduleSave();
-  const year    = parseInt(document.getElementById("selYear").value);
-  const startM  = parseInt(document.getElementById("selStartMonth").value);
-  const fskInit = parseFloat(document.getElementById("inpFsk").value) || 0;
+  const sy = getStartYear();
+  if (viewYear < sy) viewYear = sy;
+  if (viewYear > sy + MAX_YEARS) viewYear = sy + MAX_YEARS;
+  const year    = viewYear;
+  const startM  = firstActiveMonth(year);
+  if (selMonth < startM) selMonth = startM;
 
   document.getElementById("yearTitle").textContent = "JAHRESÜBERSICHT " + year;
   document.getElementById("badgeText").textContent = "2F · 2S · 2N · 4frei · Bayern · " + document.getElementById("selModell").value + "h/Woche";
   loadKorr();
+  renderAnspruchInputs();
 
-  lastMonths = compute();
+  lastMonths = computeYear(year);
+  const firstA  = lastMonths.find(m => m.active);
+  const fskInit = firstA ? firstA.fskS : (parseFloat(document.getElementById("inpFsk").value) || 0);
   const lastA  = [...lastMonths].reverse().find(m => m.active);
   const fskEnd = lastA ? lastA.fskE : fskInit;
   const totD   = Math.round((fskEnd - fskInit) * 100) / 100;
 
   document.getElementById("fskBar").innerHTML =
-    '<span>Start (' + MONTHS[startM].slice(0,3) + '): <b class="' + (fskInit>=0?"pos":"neg") + '">' + (fskInit>=0?"+":"") + fskInit.toFixed(2) + 'h</b></span>' +
-    '<span>Jahresende: <b class="' + (fskEnd>=0?"pos":"neg") + '">' + (fskEnd>=0?"+":"") + fskEnd.toFixed(2) + 'h</b></span>' +
+    '<span>Start (' + MONTHS[startM].slice(0,3) + ' ' + year + '): <b class="' + (fskInit>=0?"pos":"neg") + '">' + (fskInit>=0?"+":"") + fskInit.toFixed(2) + 'h</b></span>' +
+    '<span>Jahresende ' + year + ': <b class="' + (fskEnd>=0?"pos":"neg") + '">' + (fskEnd>=0?"+":"") + fskEnd.toFixed(2) + 'h</b></span>' +
     '<span>Gesamt Δ: <b class="' + (totD>=0?"pos":"neg") + '">' + (totD>=0?"+":"") + totD.toFixed(2) + 'h</b></span>';
 
   renderWhatIf();
@@ -760,7 +797,7 @@ function render() {
 
 // ===== MODAL =====
 function openModal(ds) {
-  const year   = parseInt(document.getElementById("selYear").value);
+  const year   = parseInt(ds.slice(0, 4));
   const base   = getBase();
   const ft     = getFT(year);
   const parts  = ds.split("-");
@@ -809,8 +846,8 @@ function openModal(ds) {
       if (day.tz)            tzBisHeute++;
     }
   }
-  const urRest = urlaubAnspruch - urBisHeute;
-  const tzRest = tzugAnspruch   - tzBisHeute;
+  const urRest = getUrlaub(year) - urBisHeute;
+  const tzRest = getTzug(year)   - tzBisHeute;
   const col = v => v <= 0 ? "#f87171" : v <= 3 ? "#fbbf24" : "#64748b";
   document.getElementById("modalKontingent").innerHTML =
     '🏖 Urlaub verfügbar: <b style="color:' + col(urRest) + '">' + urRest + ' Tage</b>' +
@@ -848,7 +885,7 @@ function selectType(type) {
   const mods = TYPES[type].mods;
   if (!mods.tz) modalTz = false;
   if (!mods.zs) { modalZs = false; }
-  const year   = parseInt(document.getElementById("selYear").value);
+  const year   = parseInt(modalDs.slice(0, 4));
   const base   = getBase();
   const ft     = getFT(year);
   const parts  = modalDs.split("-");
@@ -952,21 +989,27 @@ function closeBgClick(e) {
 }
 
 function selM(m) {
-  const sm = parseInt(document.getElementById("selStartMonth").value);
-  if (m >= sm) { selMonth = m; render(); }
+  if (m >= firstActiveMonth(viewYear)) { selMonth = m; render(); }
 }
 
+// Monat vor/zurück – geht über Jahresgrenzen hinweg
 function chgM(d) {
-  const sm = parseInt(document.getElementById("selStartMonth").value);
-  const n  = selMonth + d;
-  if (n >= sm && n <= 11) { selMonth = n; render(); }
+  let y = viewYear, n = selMonth + d;
+  if (n > 11) { n = 0;  y++; }
+  if (n < 0)  { n = 11; y--; }
+  const sy = getStartYear();
+  if (y < sy || y > sy + MAX_YEARS) return;
+  if (n < firstActiveMonth(y)) return;
+  viewYear = y; selMonth = n;
+  render();
 }
 
 // ===== SAVE / LOAD (Copy & Paste) =====
 function buildState() {
   return {
-    v: 4,
+    v: 5,
     year:          document.getElementById("selYear").value,
+    viewYear:      viewYear,
     startMonth:    document.getElementById("selStartMonth").value,
     fsk:           document.getElementById("inpFsk").value,
     date:          document.getElementById("inpDate").value,
@@ -977,8 +1020,8 @@ function buildState() {
     korrMap:       korrMap,
     sobsMap:       sobsMap,
     notes:         notes,
-    urlaubAnspruch: urlaubAnspruch,
-    tzugAnspruch:   tzugAnspruch,
+    urlaubMap:     urlaubMap,
+    tzugMap:       tzugMap,
   };
 }
 
@@ -1040,10 +1083,14 @@ function applyState(s) {
   Object.assign(korrMap,   s.korrMap   || {});
   Object.assign(sobsMap,   s.sobsMap   || {});
   Object.assign(notes,     s.notes     || {});
-  urlaubAnspruch = s.urlaubAnspruch !== undefined ? s.urlaubAnspruch : 30;
-  tzugAnspruch   = s.tzugAnspruch   !== undefined ? s.tzugAnspruch   : 8;
-  document.getElementById("inpUrlaubA").value = urlaubAnspruch;
-  document.getElementById("inpTzugA").value   = tzugAnspruch;
+  for (const k in urlaubMap) delete urlaubMap[k];
+  for (const k in tzugMap)   delete tzugMap[k];
+  const sy = String(s.year || "2026");
+  if (s.urlaubMap) Object.assign(urlaubMap, s.urlaubMap);
+  else if (s.urlaubAnspruch !== undefined) urlaubMap[sy] = s.urlaubAnspruch; // alter Stand (bis v5.1): gilt fürs Startjahr
+  if (s.tzugMap) Object.assign(tzugMap, s.tzugMap);
+  else if (s.tzugAnspruch !== undefined) tzugMap[sy] = s.tzugAnspruch;
+  viewYear = s.viewYear !== undefined ? parseInt(s.viewYear) : parseInt(sy);
   showStatus("✅ Stand geladen!", "ok");
   render();
 }
@@ -1057,8 +1104,9 @@ function showStatus(msg, cls) {
 
 ["selYear","selStartMonth","inpFsk","inpDate","selPos","selModell"].forEach(id => {
   document.getElementById(id).addEventListener("change", () => {
-    const sm = parseInt(document.getElementById("selStartMonth").value);
-    if (selMonth < sm) selMonth = sm;
+    // Startpunkt geändert: angezeigtes Jahr darf nicht vor dem Startjahr liegen
+    if (viewYear < getStartYear()) viewYear = getStartYear();
+    if (selMonth < firstActiveMonth(viewYear)) selMonth = firstActiveMonth(viewYear);
     render();
   });
 });
