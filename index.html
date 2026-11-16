@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <meta name="color-scheme" content="light dark">
-<title>Schichtplaner v5.5</title>
+<title>Schichtplaner v5.6</title>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;600;700&display=swap" rel="stylesheet">
 <style>
 /* ===== FARBEN =====
@@ -238,7 +238,7 @@ body { background: var(--bg); color: var(--text); font-family: 'IBM Plex Mono', 
 </div>
 
 <div class="header">
-  <h1>⏱ Schichtplaner v5.5</h1>
+  <h1>⏱ Schichtplaner v5.6</h1>
   <span class="badge" id="badgeText">2F · 2S · 2N · 4frei · Bayern · 35h/Woche</span>
   <p>Tippe auf einen Tag um ihn zu bearbeiten</p>
   <div class="acct-row" id="acctRow" style="display:none">
@@ -283,7 +283,7 @@ body { background: var(--bg); color: var(--text); font-family: 'IBM Plex Mono', 
     </select>
   </label>
   <label>FSK-STAND ZU BEGINN (h)
-    <input type="number" id="inpFsk" value="18.54" step="0.01" style="width:85px">
+    <input type="text" id="inpFsk" value="18.54" autocomplete="off" spellcheck="false" style="width:85px">
   </label>
   <label>+F+-TAG AUS DEINEM PEP
     <input type="date" id="inpFF" value="">
@@ -361,10 +361,10 @@ body { background: var(--bg); color: var(--text); font-family: 'IBM Plex Mono', 
 
   <div class="mkorr">
     <label>Monatskorrektur (h):
-      <input type="number" id="inpKorr" value="0.07" step="0.01" onchange="saveKorr()">
+      <input type="text" id="inpKorr" value="0.07" autocomplete="off" spellcheck="false" onchange="saveKorr()">
     </label>
     <label style="margin-left:12px">SoBS (h):
-      <input type="number" id="inpSobs" value="-0.58" step="0.01" onchange="saveSobs()">
+      <input type="text" id="inpSobs" value="-0.58" autocomplete="off" spellcheck="false" onchange="saveSobs()">
     </label>
     <span class="mkorr-hint">+0,07h Rundungsausgleich (1.) − 0,58h SoBS (letzter Tag) = −0,51h netto</span>
   </div>
@@ -550,6 +550,12 @@ function fmtDs(date) {
   return date.getFullYear() + "-" + String(date.getMonth()+1).padStart(2,"0") + "-" + String(date.getDate()).padStart(2,"0");
 }
 
+// Zahl aus Textfeld lesen: erlaubt Komma oder Punkt, normales und typografisches Minus, Leerzeichen
+function num(v) {
+  const x = parseFloat(String(v || "").replace(/\s/g, "").replace(/[−–]/g, "-").replace(",", "."));
+  return isNaN(x) ? 0 : x;
+}
+
 // Lage des +F+ im 70-Tage-Takt, gezählt ab Zyklusbeginn (wird von getBase gesetzt)
 let ffPhase = 19;
 
@@ -644,12 +650,12 @@ function getDayInfo(ds, date, base, ft) {
 }
 
 function saveKorr() {
-  korrMap[viewYear + "-" + selMonth] = parseFloat(document.getElementById("inpKorr").value) || 0;
+  korrMap[viewYear + "-" + selMonth] = num(document.getElementById("inpKorr").value);
   render();
 }
 
 function saveSobs() {
-  sobsMap[viewYear + "-" + selMonth] = parseFloat(document.getElementById("inpSobs").value) || 0;
+  sobsMap[viewYear + "-" + selMonth] = num(document.getElementById("inpSobs").value);
   render();
 }
 
@@ -717,7 +723,7 @@ function loadKorr() {
 function computeYear(targetYear) {
   const sy = getStartYear();
   if (targetYear < sy) return compute(targetYear, 12, 0); // vor dem Startjahr: alles inaktiv
-  let fsk = parseFloat(document.getElementById("inpFsk").value) || 0;
+  let fsk = num(document.getElementById("inpFsk").value);
   let months = [];
   for (let y = sy; y <= targetYear; y++) {
     months = compute(y, y === sy ? getStartMonth() : 0, fsk);
@@ -843,7 +849,7 @@ function render() {
 
   lastMonths = computeYear(year);
   const firstA  = lastMonths.find(m => m.active);
-  const fskInit = firstA ? firstA.fskS : (parseFloat(document.getElementById("inpFsk").value) || 0);
+  const fskInit = firstA ? firstA.fskS : num(document.getElementById("inpFsk").value);
   const lastA  = [...lastMonths].reverse().find(m => m.active);
   const fskEnd = lastA ? lastA.fskE : fskInit;
   const totD   = Math.round((fskEnd - fskInit) * 100) / 100;
