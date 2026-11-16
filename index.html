@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <meta name="color-scheme" content="light dark">
-<title>Schichtplaner v5.4</title>
+<title>Schichtplaner v5.5</title>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;600;700&display=swap" rel="stylesheet">
 <style>
 /* ===== FARBEN =====
@@ -238,7 +238,7 @@ body { background: var(--bg); color: var(--text); font-family: 'IBM Plex Mono', 
 </div>
 
 <div class="header">
-  <h1>⏱ Schichtplaner v5.4</h1>
+  <h1>⏱ Schichtplaner v5.5</h1>
   <span class="badge" id="badgeText">2F · 2S · 2N · 4frei · Bayern · 35h/Woche</span>
   <p>Tippe auf einen Tag um ihn zu bearbeiten</p>
   <div class="acct-row" id="acctRow" style="display:none">
@@ -285,6 +285,10 @@ body { background: var(--bg); color: var(--text); font-family: 'IBM Plex Mono', 
   <label>FSK-STAND ZU BEGINN (h)
     <input type="number" id="inpFsk" value="18.54" step="0.01" style="width:85px">
   </label>
+  <label>+F+-TAG AUS DEINEM PEP
+    <input type="date" id="inpFF" value="">
+  </label>
+  <span id="oldCycle" style="display:contents">
   <label>ZYKLUSREFERENZ
     <input type="date" id="inpDate" value="2026-05-01">
   </label>
@@ -297,6 +301,8 @@ body { background: var(--bg); color: var(--text); font-family: 'IBM Plex Mono', 
       <option value="9">Tag 9: Frei</option><option value="10">Tag 10: Frei</option>
     </select>
   </label>
+  </span>
+  <div class="config-hint" id="ffInfo"></div>
   <label>WOCHENMODELL
     <select id="selModell">
       <option value="35" selected>35h/Woche</option>
@@ -544,12 +550,41 @@ function fmtDs(date) {
   return date.getFullYear() + "-" + String(date.getMonth()+1).padStart(2,"0") + "-" + String(date.getDate()).padStart(2,"0");
 }
 
+// Lage des +F+ im 70-Tage-Takt, gezählt ab Zyklusbeginn (wird von getBase gesetzt)
+let ffPhase = 19;
+
 function getBase() {
+  const ff = document.getElementById("inpFF").value;
+  if (ff) {
+    // +F+ ist immer Tag 10 eines Blocks → Zyklusbeginn = 9 Tage davor; der +F+ kommt alle 70 Tage wieder
+    const d = new Date(ff + "T00:00:00");
+    d.setDate(d.getDate() - 9);
+    ffPhase = 9;
+    return d;
+  }
+  // alter Weg (ohne +F+-Tag): Zyklusreferenz + Position, +F+ geschätzt
   const ds  = document.getElementById("inpDate").value;
   const pos = parseInt(document.getElementById("selPos").value);
   const d   = new Date(ds + "T00:00:00");
   d.setDate(d.getDate() - (pos - 1));
+  ffPhase = 19;
   return d;
+}
+
+function renderFFInfo() {
+  const ff  = document.getElementById("inpFF").value;
+  const el  = document.getElementById("ffInfo");
+  document.getElementById("oldCycle").style.display = ff ? "none" : "contents";
+  if (!ff) {
+    el.innerHTML = '<span class="warn">⚠ Bitte einen +F+-Tag aus deinem PEP eintragen (egal welchen). Bis dahin wird der +F+ über Zyklusreferenz/Position nur geschätzt und kann am falschen Tag liegen.</span>';
+    return;
+  }
+  const d = new Date(ff + "T00:00:00"), today = new Date(); today.setHours(0,0,0,0);
+  const steps = Math.ceil((today - d) / (70 * 86400000));
+  d.setDate(d.getDate() + 70 * steps);
+  const next = [];
+  for (let i = 0; i < 4; i++) { next.push(d.toLocaleDateString("de-DE", { day:"2-digit", month:"2-digit", year:"numeric" })); d.setDate(d.getDate() + 70); }
+  el.innerHTML = '🔁 Nächste +F+-Tage: <b>' + next.join(' · ') + '</b> – bitte mit deinem PEP vergleichen.';
 }
 
 function getEaster(y) {
@@ -583,7 +618,7 @@ function cycleType(date, base) {
   // #-Tag +N+: Position 7 jedes Zyklus (direkt nach 2 Nachtschichten)
   if (posInCycle === 6) return "DF";
   // #-Tag +F+: Position 10 alle 7 Zyklen (70 Tage)
-  if (posInCycle === 9 && posIn70 === 19) return "DF";
+  if (posInCycle === 9 && posIn70 === ffPhase) return "DF";
   return ZYKLUS[posInCycle];
 }
 
@@ -804,6 +839,7 @@ function render() {
   loadKorr();
   renderAnspruchInputs();
   renderLegend();
+  renderFFInfo();
 
   lastMonths = computeYear(year);
   const firstA  = lastMonths.find(m => m.active);
@@ -1137,6 +1173,7 @@ function buildState() {
     startMonth:    document.getElementById("selStartMonth").value,
     fsk:           document.getElementById("inpFsk").value,
     date:          document.getElementById("inpDate").value,
+    ffDate:        document.getElementById("inpFF").value,
     pos:           document.getElementById("selPos").value,
     modell:        document.getElementById("selModell").value,
     selMonth:      selMonth,
@@ -1198,6 +1235,7 @@ function applyState(s) {
   document.getElementById("selStartMonth").value = s.startMonth || "0";
   document.getElementById("inpFsk").value        = s.fsk || "0";
   document.getElementById("inpDate").value       = s.date || "2026-05-01";
+  document.getElementById("inpFF").value         = s.ffDate || "";
   document.getElementById("selPos").value        = s.pos || "1";
   if (s.modell) document.getElementById("selModell").value = s.modell;
   selMonth = s.selMonth !== undefined ? s.selMonth : 5;
@@ -1231,7 +1269,7 @@ function showStatus(msg, cls) {
   setTimeout(() => el.classList.remove("show"), 4000);
 }
 
-["selYear","selStartMonth","inpFsk","inpDate","selPos","selModell"].forEach(id => {
+["selYear","selStartMonth","inpFsk","inpFF","inpDate","selPos","selModell"].forEach(id => {
   document.getElementById(id).addEventListener("change", () => {
     // Startpunkt geändert: angezeigtes Jahr darf nicht vor dem Startjahr liegen
     if (viewYear < getStartYear()) viewYear = getStartYear();
