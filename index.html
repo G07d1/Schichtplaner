@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <meta name="color-scheme" content="light dark">
-<title>Schichtplaner v5.6</title>
+<title>Schichtplaner v5.7</title>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;600;700&display=swap" rel="stylesheet">
 <style>
 /* ===== FARBEN =====
@@ -238,7 +238,7 @@ body { background: var(--bg); color: var(--text); font-family: 'IBM Plex Mono', 
 </div>
 
 <div class="header">
-  <h1>⏱ Schichtplaner v5.6</h1>
+  <h1>⏱ Schichtplaner v5.7</h1>
   <span class="badge" id="badgeText">2F · 2S · 2N · 4frei · Bayern · 35h/Woche</span>
   <p>Tippe auf einen Tag um ihn zu bearbeiten</p>
   <div class="acct-row" id="acctRow" style="display:none">
@@ -440,6 +440,9 @@ const TYPES = {
   FT: { label:"Feiertag",           short:"FT",   color:"#dc2626", tc:"#fff",    mods:{tz:false, zs:false, mh:false} },
   // Nacht am Vorabend eines Feiertags fällt aus (Tag läuft 22–22 Uhr, die Nacht liegt im Feiertag) → wie Feiertag, FSK 0
   FV: { label:"Feiertag (verschoben)", short:"FT↺", color:"#dc2626", tc:"#fff",  mods:{tz:false, zs:false, mh:false} },
+  // 24.12./31.12. laut Schulung Folie 53: Früh = ganztägig frei, Zeitkonto −½ IRTAZ; Spät/Nacht = frei ohne Abzug
+  HF: { label:"Heiligabend/Silvester (Früh, −½ Tag)", short:"½F", color:"#9f1239", tc:"#fff", mods:{tz:false, zs:false, mh:false} },
+  HS: { label:"Heiligabend/Silvester (frei)",          short:"24/31", color:"#9f1239", tc:"#fff", mods:{tz:false, zs:false, mh:false} },
 };
 
 // ===== SCHICHTFARBEN =====
@@ -448,12 +451,12 @@ const PALETTES = {
   klassisch: {
     F:["#fbbf24","#1c1917"], S:["#f97316","#ffffff"], N:["#1e40af","#e0e7ff"], DF:["#92400e","#fef3c7"],
     FS:["#4b5563","#f3f4f6"], UF:["#1e3a5f","#bfdbfe"], UR:["#7c3aed","#ffffff"], KR:["#be123c","#ffffff"],
-    FT:["#dc2626","#ffffff"], FV:["#dc2626","#ffffff"],
+    FT:["#dc2626","#ffffff"], FV:["#dc2626","#ffffff"], HF:["#9f1239","#ffffff"], HS:["#9f1239","#ffffff"],
   },
   pep: {
     F:["#0b84d6","#ffffff"], S:["#c0127a","#ffffff"], N:["#6b2193","#ffffff"], DF:["#3a8bb0","#ffffff"],
     FS:["#4b5563","#f3f4f6"], UF:["#334155","#e2e8f0"], UR:["#16a34a","#ffffff"], KR:["#e11d48","#ffffff"],
-    FT:["#dc2626","#ffffff"], FV:["#dc2626","#ffffff"],
+    FT:["#dc2626","#ffffff"], FV:["#dc2626","#ffffff"], HF:["#9f1239","#ffffff"], HS:["#9f1239","#ffffff"],
   },
 };
 let themeSetting   = "auto"; // auto | light | dark
@@ -488,13 +491,14 @@ function renderLegend() {
     items.map(([k,l]) => '<div class="li"><div class="ld" style="background:' + TYPES[k].color + '"></div>' + l + '</div>').join("") +
     '<div class="li"><span class="mod-badge mod-zs">ZS</span>Zusatzschicht</div>' +
     '<div class="li"><span class="mod-badge mod-tz">TZ</span>T-Zug</div>' +
-    '<div class="li"><div class="ld" style="background:' + TYPES.FV.color + '"></div>FT↺ = Feiertag verschoben (Nacht am Vorabend)</div>';
+    '<div class="li"><div class="ld" style="background:' + TYPES.FV.color + '"></div>FT↺ = Feiertag verschoben (Nacht am Vorabend)</div>' +
+    '<div class="li"><div class="ld" style="background:' + TYPES.HS.color + '"></div>24/31 bzw. ½F = Heiligabend/Silvester</div>';
 }
 
 const OPT_GROUPS = [
   { label:"ANWESENHEIT",         types:["F","S","N"]       },
   { label:"ABWESENHEIT BEZAHLT", types:["UR","KR"]         },
-  { label:"ABWESENHEIT NEUTRAL", types:["X","DF","FS","UF","FV"] },
+  { label:"ABWESENHEIT NEUTRAL", types:["X","DF","FS","UF","FV","HS","HF"] },
 ];
 
 const overrides = {};
@@ -534,7 +538,8 @@ function fskDelta(type, tz, zs, mhVal, isFTDay, hasOvr) {
   if (isFTDay && hasOvr && (isShift || type === "UR" || type === "KR")) return 8.08;
   if (type === "UR" || type === "KR") return 1.08;
   if (type === "FS") return -getSoll();
-  if (type === "FT" || type === "FV") return 0;
+  if (type === "FT" || type === "FV" || type === "HS") return 0;
+  if (type === "HF") return -getSoll() / 2;
   if (type === "UF") return 0;
   const soll = (isShift || type === "DF") ? getSoll() : 0;
   let arbeit;
@@ -636,6 +641,9 @@ function autoType(date, base, ft) {
   const ds = fmtDs(date);
   const t  = cycleType(date, base);
   if (ft.has(ds)) return t === "N" ? "N" : "FT";
+  // Heiligabend/Silvester (Nacht wird unten schon als Vorabend eines Feiertags erkannt)
+  const md = ds.slice(5);
+  if ((md === "12-24" || md === "12-31") && (t === "F" || t === "S")) return t === "F" ? "HF" : "HS";
   if (t === "N") {
     const next   = new Date(date.getFullYear(), date.getMonth(), date.getDate() + 1);
     const ftNext = next.getFullYear() === date.getFullYear() ? ft : getFT(next.getFullYear());
@@ -772,7 +780,7 @@ function compute(year, startM, fskInit) {
         if (type === "KR") nKR++;
         if (tz)            nTZ++;
 
-        const sollDay = (type==="F"||type==="S"||type==="N"||type==="DF") ? getSoll() : 0;
+        const sollDay = (type==="F"||type==="S"||type==="N"||type==="DF") ? getSoll() : (type==="HF" ? getSoll() / 2 : 0);
         let effArbeit;
         if (tz) effArbeit = sollDay;
         else if (mhVal !== null) effArbeit = mhVal;
@@ -922,7 +930,7 @@ function render() {
       if (day.isFTDay) dnumCls = "feiertag";
       else if (day.isWE) dnumCls = "weekend";
       let cellCls = "";
-      if ((day.isFTDay || day.type === "FV") && !day.hasOvr) cellCls = "ft-bg";
+      if ((day.isFTDay || day.type === "FV" || day.type === "HF" || day.type === "HS") && !day.hasOvr) cellCls = "ft-bg";
       else if (day.isWE) cellCls = "we";
 
       let dH;
@@ -994,6 +1002,8 @@ function openModal(ds) {
     (ftKrank  ? " · ⚡ Krank = +8,08h"    : "") +
     (isFTDay && !hasOvr && autoT === "N" ? " · 🌙 Nacht am Feiertag = normale Schicht (+1,08h)" : "") +
     (!hasOvr && autoT === "FV" ? " · Nacht am Vorabend fällt aus (Feiertag ab 22 Uhr) = 0h" : "") +
+    (!hasOvr && autoT === "HF" ? " · Früh am 24./31.12.: frei, Zeitkonto −½ Tag (" + (-getSoll()/2).toFixed(2) + "h) – Urlaub/unbez. Freistellung manuell wählbar" : "") +
+    (!hasOvr && autoT === "HS" ? " · Spät am 24./31.12.: frei ohne Abzug = 0h" : "") +
     (!isFTDay && hasOvr ? " · Manuell geändert" : "");
 
   document.getElementById("noteInput").value = notes[ds] || "";
