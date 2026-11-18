@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <meta name="color-scheme" content="light dark">
-<title>Schichtplaner v5.7</title>
+<title>Schichtplaner v5.7.1</title>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;600;700&display=swap" rel="stylesheet">
 <style>
 /* ===== FARBEN =====
@@ -238,7 +238,7 @@ body { background: var(--bg); color: var(--text); font-family: 'IBM Plex Mono', 
 </div>
 
 <div class="header">
-  <h1>⏱ Schichtplaner v5.7</h1>
+  <h1>⏱ Schichtplaner v5.7.1</h1>
   <span class="badge" id="badgeText">2F · 2S · 2N · 4frei · Bayern · 35h/Woche</span>
   <p>Tippe auf einen Tag um ihn zu bearbeiten</p>
   <div class="acct-row" id="acctRow" style="display:none">
@@ -530,12 +530,14 @@ function getSoll() {
   return parseInt(document.getElementById("selModell").value) / 5;
 }
 
-function fskDelta(type, tz, zs, mhVal, isFTDay, hasOvr) {
+function fskDelta(type, tz, zs, mhVal, isFTDay, hasOvr, ftLost) {
   if (tz) return 0;
   const isShift = (type === "F" || type === "S" || type === "N");
-  // Feiertag + MANUELL eingetragene Schicht/Urlaub/Krank → +8,08h (Sonderfälle wie 26.12., wird noch geklärt).
-  // Automatisch geplante Nacht am Feiertag ist eine normale Nacht (+1,08h, belegt durch Zeitnachweis 1. Mai 2026).
+  // Feiertag + MANUELL eingetragene Schicht/Urlaub/Krank → +8,08h
   if (isFTDay && hasOvr && (isShift || type === "UR" || type === "KR")) return 8.08;
+  // Automatische Nacht am Feiertag ohne ausgefallene Nacht am Vorabend → Feiertag verloren → +8,08h
+  // (mit ausgefallener Vorabend-Nacht: normale Nacht +1,08h, belegt durch Zeitnachweis 1. Mai 2026)
+  if (isFTDay && !hasOvr && type === "N" && ftLost && mhVal === null) return 8.08;
   if (type === "UR" || type === "KR") return 1.08;
   if (type === "FS") return -getSoll();
   if (type === "FT" || type === "FV" || type === "HS") return 0;
@@ -640,16 +642,25 @@ function cycleType(date, base) {
 function autoType(date, base, ft) {
   const ds = fmtDs(date);
   const t  = cycleType(date, base);
-  if (ft.has(ds)) return t === "N" ? "N" : "FT";
-  // Heiligabend/Silvester (Nacht wird unten schon als Vorabend eines Feiertags erkannt)
-  const md = ds.slice(5);
-  if ((md === "12-24" || md === "12-31") && (t === "F" || t === "S")) return t === "F" ? "HF" : "HS";
   if (t === "N") {
     const next   = new Date(date.getFullYear(), date.getMonth(), date.getDate() + 1);
     const ftNext = next.getFullYear() === date.getFullYear() ? ft : getFT(next.getFullYear());
-    if (ftNext.has(fmtDs(next))) return "FV";
+    if (ftNext.has(fmtDs(next))) return "FV";   // Nacht liegt im folgenden Feiertag → fällt aus
+    return "N";                                  // auch am Feiertag selbst: Nacht wird gearbeitet
   }
+  if (ft.has(ds)) return "FT";
+  // Heiligabend/Silvester (Nacht ist oben schon als Vorabend eines Feiertags erkannt)
+  const md = ds.slice(5);
+  if ((md === "12-24" || md === "12-31") && (t === "F" || t === "S")) return t === "F" ? "HF" : "HS";
   return t;
+}
+
+// Nacht am Feiertag: Fiel die Nacht am Vorabend aus ("FT↺"), war der Feiertag frei → normale Nacht (+1,08h).
+// Lag davor eine Spätschicht, fällt keine Schicht aus und der Feiertag geht verloren → Ausgleich, gesamt +8,08h.
+function ftLostNight(date, base, ft) {
+  const prev   = new Date(date.getFullYear(), date.getMonth(), date.getDate() - 1);
+  const ftPrev = prev.getFullYear() === date.getFullYear() ? ft : getFT(prev.getFullYear());
+  return autoType(prev, base, ftPrev) !== "FV";
 }
 
 function getDayInfo(ds, date, base, ft) {
@@ -770,7 +781,8 @@ function compute(year, startM, fskInit) {
       const t       = TYPES[type] || TYPES.X;
       const isFTDay = ft.has(ds);
       const hasOvr  = overrides[ds] !== undefined;
-      const dd      = fskDelta(type, tz, zs, mhVal, isFTDay, hasOvr);
+      const ftLost  = isFTDay && !hasOvr && type === "N" && ftLostNight(date, base, ft);
+      const dd      = fskDelta(type, tz, zs, mhVal, isFTDay, hasOvr, ftLost);
       const isWE    = dow === 0 || dow === 6;
       const hasNote = !!notes[ds];
 
@@ -1000,7 +1012,11 @@ function openModal(ds) {
     (ftShift  ? " · ⚡ Schicht = +8,08h"  : "") +
     (ftUrlaub ? " · ⚡ Urlaub = +8,08h"   : "") +
     (ftKrank  ? " · ⚡ Krank = +8,08h"    : "") +
-    (isFTDay && !hasOvr && autoT === "N" ? " · 🌙 Nacht am Feiertag = normale Schicht (+1,08h)" : "") +
+    (isFTDay && !hasOvr && autoT === "N"
+       ? (ftLostNight(date, base, ft)
+          ? " · 🌙 Feiertag fällt aus (Spät davor, Nacht danach) → +8,08h"
+          : " · 🌙 Nacht am Feiertag = normale Schicht (+1,08h), der Feiertag war die Nacht am Vorabend")
+       : "") +
     (!hasOvr && autoT === "FV" ? " · Nacht am Vorabend fällt aus (Feiertag ab 22 Uhr) = 0h" : "") +
     (!hasOvr && autoT === "HF" ? " · Früh am 24./31.12.: frei, Zeitkonto −½ Tag (" + (-getSoll()/2).toFixed(2) + "h) – Urlaub/unbez. Freistellung manuell wählbar" : "") +
     (!hasOvr && autoT === "HS" ? " · Spät am 24./31.12.: frei ohne Abzug = 0h" : "") +
